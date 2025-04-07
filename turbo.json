@@ -14,8 +14,8 @@
     },
     "test": {
       "dependsOn": ["build"],
+      "cache": false,
       "passThroughEnv": ["PL_ADDRESS", "PL_TEST_PASSWORD", "PL_TEST_USER", "PL_TEST_PROXY", "DEBUG"]
-      "cache": false
     },
     "mark-stable": {
       "passThroughEnv": ["PL_REGISTRY", "AWS_*"],
