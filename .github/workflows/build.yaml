@@ -24,7 +24,7 @@ jobs:
     with:
       app-name: 'Block: Clonotype Browser 2'
       app-name-slug: 'block-clonotype-browser-2'
-      pl-docker-tag: '1.26.4'
+      pl-docker-tag: '1.27.0'
       notify-telegram: true
       node-version: '20.x'
       build-script-name: 'build'
