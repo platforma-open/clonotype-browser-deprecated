@@ -18,6 +18,7 @@
     "ag-grid-vue3": "catalog:",
     "canonicalize": "catalog:",
     "vue": "catalog:",
+    "@vue/reactivity": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {

@@ -3,11 +3,19 @@ import type { PFrameHandle } from '@platforma-sdk/model';
 import { annotationModelController, defineApp } from '@platforma-sdk/ui-vue';
 import { computed, ref } from 'vue';
 import AnnotationStatsPage from './AnnotationStatsPage.vue';
+import { migrateUiState } from './migration';
 import OverlapPage from './OverlapPage.vue';
 import PerSamplePage from './PerSamplePage.vue';
 import { getValuesForSelectedColumns } from './utils';
 
 export const sdkPlugin = defineApp(platforma as Platforma, (app) => {
+  migrateUiState(app.model.ui);
+
+  annotationModelController(
+    () => app.model.args.annotationScript,
+    () => app.model.ui.annotationScript,
+  );
+
   const isAnnotationModalOpen = ref(false);
   const hasSelectedColumns = computed(() => {
     return app.model.ui.selectedColumns?.selectedKeys.length > 0;
@@ -19,18 +27,6 @@ export const sdkPlugin = defineApp(platforma as Platforma, (app) => {
       ? [...(bySampleAndClonotypeColumns?.columns ?? []), ...(byClonotypeColumns?.columns ?? [])]
       : (byClonotypeColumns?.columns ?? []);
   });
-
-  annotationModelController(
-    () => app.model.args.annotationScript,
-    () => app.model.ui.annotationScript,
-  );
-
-  if (app.model.ui.selectedColumns === undefined) {
-    app.model.ui.selectedColumns = {
-      axesSpec: [],
-      selectedKeys: [],
-    };
-  }
 
   return {
     getValuesForSelectedColumns: () => {
