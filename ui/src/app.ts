@@ -1,19 +1,19 @@
 import type { Platforma, SimplifiedUniversalPColumnEntry } from '@platforma-open/milaboratories.clonotype-browser-2.model';
 import type { PFrameHandle } from '@platforma-sdk/model';
-import { annotationModelController, defineApp } from '@platforma-sdk/ui-vue';
+import { defineApp } from '@platforma-sdk/ui-vue';
 import { computed, ref } from 'vue';
 import AnnotationStatsPage from './AnnotationStatsPage.vue';
 import { migrateUiState } from './migration';
+import { processAnnotatiuoUiStateToArgs } from './model';
 import OverlapPage from './OverlapPage.vue';
 import PerSamplePage from './PerSamplePage.vue';
 import { getValuesForSelectedColumns } from './utils';
 
 export const sdkPlugin = defineApp(platforma as Platforma, (app) => {
   migrateUiState(app.model.ui);
-
-  annotationModelController(
-    () => app.model.args.annotationScript,
+  processAnnotatiuoUiStateToArgs(
     () => app.model.ui.annotationScript,
+    () => app.model.args.annotationScript,
   );
 
   const isAnnotationModalOpen = ref(false);
