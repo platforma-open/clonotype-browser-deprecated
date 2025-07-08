@@ -16,7 +16,7 @@
     "@changesets/cli": "catalog:"
   },
   "packageManager": "pnpm@9.12.0",
-  "pnpm": {
+  "//pnpm": {
     "overrides": {
       "@platforma-sdk/model": "link:/Users/aleksandr/Projects/MILAB/platforma/sdk/model/",
       "@platforma-sdk/ui-vue": "link:/Users/aleksandr/Projects/MILAB/platforma/sdk/ui-vue/",
