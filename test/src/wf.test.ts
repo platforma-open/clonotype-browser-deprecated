@@ -229,10 +229,10 @@ blockTest(
     console.dir({ byClonotypeColumns: outputs5.byClonotypeColumns }, { depth: 8 });
 
     // Find column IDs from byClonotypeColumns
-    const readCount652Column = findColumnId(outputs5.byClonotypeColumns, (l) => l.includes('Number Of Reads / SRR11233652'));
-    const readFraction652Column = findColumnId(outputs5.byClonotypeColumns, (l) => l.includes('Fraction of reads / SRR11233652'));
-    const readFraction664Column = findColumnId(outputs5.byClonotypeColumns, (l) => l.includes('Fraction of reads / SRR11233664'));
-    const vGeneColumn = findColumnId(outputs5.byClonotypeColumns, 'Best V gene');
+    const readCount652Column = findColumnId(outputs5.byClonotypeColumns?.columns, (l) => l.includes('Number Of Reads / SRR11233652'));
+    const readFraction652Column = findColumnId(outputs5.byClonotypeColumns?.columns, (l) => l.includes('Fraction of reads / SRR11233652'));
+    const readFraction664Column = findColumnId(outputs5.byClonotypeColumns?.columns, (l) => l.includes('Fraction of reads / SRR11233664'));
+    const vGeneColumn = findColumnId(outputs5.byClonotypeColumns?.columns, 'Best V gene');
 
     // Ensure all column references are defined before using them
     expect(readCount652Column, 'Read Count 652 Column').toBeDefined();
@@ -344,10 +344,10 @@ blockTest(
 
     // Find column IDs from bySampleAndClonotypeColumns
     // Note: In this mode, columns represent values per sample-clonotype pair directly
-    const readCountColumn = findColumnId(outputs5.bySampleAndClonotypeColumns, 'Number Of Reads');
-    const readFractionColumn = findColumnId(outputs5.bySampleAndClonotypeColumns, 'Fraction of reads');
+    const readCountColumn = findColumnId(outputs5.bySampleAndClonotypeColumns?.columns, 'Number Of Reads');
+    const readFractionColumn = findColumnId(outputs5.bySampleAndClonotypeColumns?.columns, 'Fraction of reads');
     // Find V gene from byClonotypeColumns (still available, represents clonotype property)
-    const vGeneColumn = findColumnId(outputs5.byClonotypeColumns, 'Best V gene');
+    const vGeneColumn = findColumnId(outputs5.byClonotypeColumns?.columns, 'Best V gene');
 
     expect(readCountColumn, 'Read Count Column').toBeDefined();
     expect(readFractionColumn, 'Read Fraction Column').toBeDefined();
