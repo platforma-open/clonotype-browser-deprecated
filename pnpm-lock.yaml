@@ -225,9 +225,6 @@ importers:
       '@platforma-sdk/model':
         specifier: 'catalog:'
         version: 1.40.5
-      remeda:
-        specifier: 'catalog:'
-        version: 2.26.0
       this-block:
         specifier: workspace:@platforma-open/milaboratories.clonotype-browser-2@*
         version: link:../block
