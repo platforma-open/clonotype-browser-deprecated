@@ -4,15 +4,19 @@
   "description": "Block model",
   "type": "module",
   "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "require": "dist/index.cjs",
   "exports": {
     ".": {
       "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.cjs",
       "default": "./dist/index.js"
     },
     "./dist/*": "./dist/*"
   },
   "scripts": {
-    "build": "tsup && vite build && block-tools build-model",
+    "build": "vite build && block-tools build-model",
     "lint": "eslint ."
   },
   "dependencies": {
@@ -24,25 +28,10 @@
   "devDependencies": {
     "@platforma-sdk/block-tools": "catalog:",
     "@platforma-sdk/eslint-config": "catalog:",
+    "@milaboratories/build-configs": "catalog:",
     "eslint": "catalog:",
-    "tsup": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:",
     "vitest": "catalog:"
-  },
-  "tsup": {
-    "entry": [
-      "src/index.ts"
-    ],
-    "splitting": false,
-    "treeshake": true,
-    "clean": true,
-    "format": [
-      "cjs",
-      "esm"
-    ],
-    "dts": true,
-    "minify": false,
-    "sourcemap": true
   }
 }
