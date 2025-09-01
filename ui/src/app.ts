@@ -1,13 +1,13 @@
-import type { Platforma, SimplifiedUniversalPColumnEntry } from '@platforma-open/milaboratories.clonotype-browser-2.model';
+import type { Platforma } from '@platforma-open/milaboratories.clonotype-browser-2.model';
 import { platforma } from '@platforma-open/milaboratories.clonotype-browser-2.model';
-import type { PFrameHandle, PlSelectionModel } from '@platforma-sdk/model';
+import type { PFrameHandle, PlSelectionModel, SimplifiedUniversalPColumnEntry } from '@platforma-sdk/model';
 import { defineApp } from '@platforma-sdk/ui-vue';
 import { computed, ref } from 'vue';
 import AnnotationStatsPage from './components/AnnotationStatsPage.vue';
 import OverlapPage from './components/OverlapPage.vue';
 import PerSamplePage from './components/PerSamplePage.vue';
 import { migrateUiState } from './migration';
-import { processAnnotatiuoUiStateToArgs } from './model';
+import { processAnnotationUiStateToArgsState, processAnnotatiuoUiStateToArgs } from './model';
 import { getValuesForSelectedColumns } from './utils';
 
 export const sdkPlugin = defineApp(platforma as Platforma, (app) => {
@@ -15,6 +15,10 @@ export const sdkPlugin = defineApp(platforma as Platforma, (app) => {
   processAnnotatiuoUiStateToArgs(
     () => app.model.ui.annotationScript,
     () => app.model.args.annotationScript,
+  );
+  processAnnotationUiStateToArgsState(
+    () => app.model.ui.annotationScript,
+    () => app.model.args.annotationSpecs,
   );
 
   const selectedColumns = ref({

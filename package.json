@@ -34,17 +34,12 @@
     }
   },
   "pnpm": {
-    "overrides": {}
-  },
-  "///": {
-    "pnpm": {
-      "overrides": {
-        "@milaboratories/pl-model-common": "file:/Users/poslavskysv/Projects/milab/platforma/platforma-sdk/lib/model/common/package.tgz",
-        "@platforma-sdk/model": "file:/Users/poslavskysv/Projects/milab/platforma/platforma-sdk/sdk/model/package.tgz",
-        "@platforma-sdk/ui-vue": "file:/Users/poslavskysv/Projects/milab/platforma/platforma-sdk/sdk/ui-vue/package.tgz",
-        "@platforma-sdk/workflow-tengo": "file:/Users/poslavskysv/Projects/milab/platforma/platforma-sdk/sdk/workflow-tengo/package.tgz",
-        "@milaboratories/uikit": "file:/Users/poslavskysv/Projects/milab/platforma/platforma-sdk/lib/ui/uikit/package.tgz"
-      }
+    "overrides": {
+      "@milaboratories/pl-model-common": "link:/Users/aleksandr/Projects/MILAB/platforma/lib/model/common/",
+      "@platforma-sdk/model": "link:/Users/aleksandr/Projects/MILAB/platforma/sdk/model/",
+      "@platforma-sdk/ui-vue": "link:/Users/aleksandr/Projects/MILAB/platforma/sdk/ui-vue/",
+      "@platforma-sdk/workflow-tengo": "link:/Users/aleksandr/Projects/MILAB/platforma/sdk/workflow-tengo/",
+      "@milaboratories/uikit": "link:/Users/aleksandr/Projects/MILAB/platforma/lib/ui/uikit/z"
     }
   }
 }

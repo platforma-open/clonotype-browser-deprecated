@@ -2,16 +2,16 @@ import type {
   AnchoredPColumnSelector,
   AnnotationScript,
   AnnotationScriptUi,
+  AnnotationSpecs,
   InferHrefType,
   InferOutputsType,
   PColumn,
   PColumnDataUniversal,
   PColumnEntryUniversal,
-  PColumnSpec,
   PlDataTableStateV2,
   PlRef,
   PObjectId,
-  SUniversalPColumnId
+  SimplifiedUniversalPColumnEntry,
 } from '@platforma-sdk/model';
 import {
   BlockModel,
@@ -29,6 +29,9 @@ type BlockArgs = {
   /** Annotation script to apply to the input anchor */
   annotationScript: AnnotationScript;
   datasetTitle?: string;
+
+  mode: 'byClonotype' | 'bySampleAndClonotype';
+  annotationSpecs: AnnotationSpecs;
 };
 
 export type UiState = {
@@ -43,14 +46,6 @@ export type UiState = {
     tableState: PlDataTableStateV2;
   };
   annotationScript: AnnotationScriptUi;
-};
-
-export type SimplifiedPColumnSpec = Pick<PColumnSpec, 'valueType' | 'annotations'>;
-
-export type SimplifiedUniversalPColumnEntry = {
-  id: SUniversalPColumnId;
-  label: string;
-  obj: SimplifiedPColumnSpec;
 };
 
 const excludedAnnotationKeys = [
@@ -98,6 +93,11 @@ export const platforma = BlockModel.create('Heavy')
       title: 'My Annotation',
       mode: 'byClonotype',
       steps: [],
+    },
+    mode: 'byClonotype',
+    annotationSpecs: {
+      title: 'My Annotation',
+      specs: [],
     },
   })
 
