@@ -2,7 +2,7 @@ import type { Platforma } from '@platforma-open/milaboratories.clonotype-browser
 import { platforma } from '@platforma-open/milaboratories.clonotype-browser-2.model';
 import type { PFrameHandle, PlSelectionModel, SimplifiedUniversalPColumnEntry } from '@platforma-sdk/model';
 import { defineApp } from '@platforma-sdk/ui-vue';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import AnnotationStatsPage from './components/AnnotationStatsPage.vue';
 import OverlapPage from './components/OverlapPage.vue';
 import PerSamplePage from './components/PerSamplePage.vue';
@@ -11,6 +11,10 @@ import { processAnnotationUiStateToArgsState, processAnnotatiuoUiStateToArgs } f
 import { getValuesForSelectedColumns } from './utils';
 
 export const sdkPlugin = defineApp(platforma as Platforma, (app) => {
+  watch(() => app.model.outputs.overlapTableV2, (v) => {
+    console.log('>>>', v);
+  }, { immediate: true });
+
   migrateUiState(app.model.ui);
   processAnnotatiuoUiStateToArgs(
     () => app.model.ui.annotationScript,

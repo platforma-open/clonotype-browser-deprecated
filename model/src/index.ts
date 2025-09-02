@@ -81,7 +81,7 @@ const simplifyColumnEntries = (
   return ret;
 };
 
-const copmmonExcludes: AnchoredPColumnSelector[] = [
+const commonExcludes: AnchoredPColumnSelector[] = [
   { name: 'pl7.app/vdj/sequence/annotation' },
   { annotations: { 'pl7.app/isSubset': 'true' } },
 ];
@@ -265,6 +265,56 @@ export const platforma = BlockModel.create('Heavy')
     return tsvResource.getRemoteFileHandle();
   })
 
+  .output('overlapTableV2', (ctx) => {
+    if (ctx.args.inputAnchor === undefined)
+      return undefined;
+
+    const anchorCtx = ctx.resultPool.resolveAnchorCtx({ main: ctx.args.inputAnchor });
+    if (!anchorCtx) return undefined;
+
+    const collection = new PColumnCollection();
+
+    const annotation = ctx.prerun?.resolve({ field: 'annotationPfV2', assertFieldType: 'Input', allowPermanentAbsence: true })?.getPColumns();
+    if (annotation) collection.addColumns(annotation);
+
+    // result pool is added after the pre-run ouptus so that pre-run results take precedence
+    collection
+      .addColumnProvider(ctx.resultPool)
+      .addAxisLabelProvider(ctx.resultPool);
+
+    const columns = collection.getColumns(
+      [{
+        domainAnchor: 'main',
+        axes: [
+          { split: true },
+          { anchor: 'main', idx: 1 },
+        ],
+        annotations: {
+          'pl7.app/isAbundance': 'true',
+        },
+      }, {
+        domainAnchor: 'main',
+        axes: [
+          { anchor: 'main', idx: 1 },
+        ],
+      }],
+      { anchorCtx, exclude: commonExcludes },
+    );
+
+    if (!columns) return undefined;
+
+    columns.forEach((column) => {
+      if (column.spec.annotations?.['pl7.app/isAbundance'] === 'true' && column.spec.name !== 'pl7.app/vdj/sampleCount')
+        column.spec.annotations['pl7.app/table/visibility'] = 'optional';
+    });
+
+    return createPlDataTableV2(
+      ctx,
+      columns,
+      ctx.uiState.overlapTable.tableState,
+    );
+  })
+
   .output('overlapTable', (ctx) => {
     if (ctx.args.inputAnchor === undefined)
       return undefined;
@@ -301,7 +351,7 @@ export const platforma = BlockModel.create('Heavy')
           { anchor: 'main', idx: 1 },
         ],
       }],
-      { anchorCtx, exclude: copmmonExcludes },
+      { anchorCtx, exclude: commonExcludes },
     );
 
     if (!columns) return undefined;
@@ -364,7 +414,7 @@ export const platforma = BlockModel.create('Heavy')
       }],
       {
         anchorCtx,
-        exclude: copmmonExcludes,
+        exclude: commonExcludes,
       },
     );
 

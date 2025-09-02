@@ -1,0 +1,178 @@
+self := import("@platforma-sdk/workflow-tengo:tpl")
+pt := import("@platforma-sdk/workflow-tengo:pt")
+wf := import("@platforma-sdk/workflow-tengo:workflow")
+ll := import("@platforma-sdk/workflow-tengo:ll")
+smart := import("@platforma-sdk/workflow-tengo:smart")
+xsv := import("@platforma-sdk/workflow-tengo:pframes.xsv")
+pFrames := import("@platforma-sdk/workflow-tengo:pframes")
+maps := import("@platforma-sdk/workflow-tengo:maps")
+slices := import("@platforma-sdk/workflow-tengo:slices")
+file := import("@platforma-sdk/workflow-tengo:file")
+pSpec := import("@platforma-sdk/workflow-tengo:pframes.spec")
+pBuilder := import("@platforma-sdk/workflow-tengo:pframes.builder")
+exec := import("@platforma-sdk/workflow-tengo:exec")
+assets := import("@platforma-sdk/workflow-tengo:assets")
+json := import("json")
+text := import("text")
+math := import("math")
+strings := import("@platforma-sdk/workflow-tengo:strings")
+
+util := import(":util")
+
+// Input headers
+SAMPLE_KEY_HEADER := "sample_key"
+CLONOTYPE_KEY_HEADER := "clonotype_key"
+
+// Result headers
+ANNOTATION_LABEL_HEADER := "label"
+
+// Result file
+RESULT_FILE := "result.tsv"
+
+self.awaitState("columnBundle", { wildcard: "*" }, "ref", "ResourceReady")
+self.awaitState("columnBundle", { wildcard: "*" }, "data", "InputsLocked")
+self.awaitState("columnBundle", { wildcard: "*" }, "spec", "ResourceReady")
+
+self.body(func(inputs) {
+	blockId := inputs.blockId
+	blockArgs := inputs.blockArgs
+	columnBundle := inputs.columnBundle
+	annotationSpecs := blockArgs.annotationSpecs
+
+	anchorSpec := columnBundle.getColumn(blockArgs.inputAnchor).spec
+	if len(anchorSpec.axesSpec) != 1 {
+		ll.panic("Input anchor must have exactly 1 axes (clonotype), found %d", len(anchorSpec.axesSpec))
+	}
+	clonotypeAxisSpec := anchorSpec.axesSpec[0]
+
+	mainFraction := columnBundle.getColumn(util.mainFractionColumn)
+	if is_undefined(mainFraction) {
+		ll.panic("Main abundance fraction column is required, but not found.")
+	}
+
+	mainFractionSpec := mainFraction.spec
+	mainFractionData := mainFraction.data
+
+	mainCount := columnBundle.getColumn(util.mainCountColumn)
+	if is_undefined(mainCount) {
+		ll.panic("Main count column is required, but not found.")
+	}
+
+	mainCountSpec := mainCount.spec
+	mainCountData := mainCount.data
+
+	outputs := {}
+
+	if len(annotationSpecs.specs) == 0 {
+		return outputs
+	}
+
+	// Preparing annotation script inputs
+	specsColumns := util.extractColumnsFromExpression(annotationSpecs) // Already returns unique list
+
+	numberOfColumns := len(specsColumns)
+
+	tableBuilder := pFrames.tsvFileBuilder().cpu(1).mem(string(1 + numberOfColumns * 2) + "GiB")
+	tableBuilder.setAxisHeader(clonotypeAxisSpec, CLONOTYPE_KEY_HEADER)
+
+	headerMap := {}
+
+	for colId in specsColumns {
+		tableBuilder.add(columnBundle.getColumn(colId))
+		header := tableBuilder.getHeader(colId)
+		spec := tableBuilder.getSpec(colId)
+		headerMap[colId] = header
+	}
+
+	finalExpressions := slices.map(annotationSpecs.specs, func(spec) {
+		return {
+			name: spec.name,
+			expression: util.mapExpressionColumnNames(spec.expression, func(colId) {
+				return headerMap[colId]
+			})
+		}
+	});
+
+	sourceFile := tableBuilder.build()
+
+	wf := pt.workflow()
+	
+	df := wf.frame(sourceFile, {
+		format: "tsv"
+	})
+
+	dfWithColumns := df.withColumns(finalExpressions...)
+
+	dfSelected := dfWithColumns.select(slices.map(finalExpressions, func(spec) {
+		return spec.name
+	}));
+
+    dfSelected.save(RESULT_FILE)
+
+    // Run the defined workflow
+    ptablerResult := wf.run()
+
+	targetFile := ptablerResult.getFile(RESULT_FILE)
+ 
+	//
+	// Converting result to PColumn
+	//
+
+	fullAxesSpec := [clonotypeAxisSpec]
+	importAxesSpec := [{
+		column: CLONOTYPE_KEY_HEADER,
+		spec: { type: clonotypeAxisSpec.type }
+	}]
+	partitionKeyLength := 0
+
+	importedDataMap := xsv.importFile(targetFile, "tsv", {
+		axes: importAxesSpec,
+		columns: [ {
+			column: ANNOTATION_LABEL_HEADER,
+			spec: { valueType: "String" }
+		} ],
+		partitionKeyLength: partitionKeyLength,
+		storageFormat: "Binary",
+		mem: "12GiB",
+		cpu: 1
+	}, { dataOnly: true })
+
+	annotationData := importedDataMap.getFutureInputField(ANNOTATION_LABEL_HEADER)
+
+	annotationPfBuilder := pFrames.pFrameBuilder()
+
+	trace := pSpec.makeTrace(anchorSpec, {
+		type: "milaboratories.clonotype-annotation",
+		label: annotationSpecs.title,
+		importance: 20,
+		id: blockId
+	})
+	annotationsColumnSpec := trace.inject({
+		kind: "PColumn",
+		valueType: "String",
+		name: "pl7.app/vdj/annotation",
+		domain: {
+			"pl7.app/vdj/clonotypeAnnotationRunId": blockId
+		},
+		axesSpec: fullAxesSpec,
+		annotations: {
+			"pl7.app/label": annotationSpecs.title
+		}
+	})
+	annotationsAxisSpec := {
+		type: "String",
+		name: "pl7.app/vdj/annotation",
+		domain: {
+			"pl7.app/vdj/clonotypeAnnotationRunId": blockId
+		},
+		annotations: {
+			"pl7.app/label": annotationSpecs.title
+		}
+	}
+
+	annotationPfBuilder.add("annotation", annotationsColumnSpec, annotationData)
+
+	outputs["annotationPf"] = annotationPfBuilder.build()
+
+	return outputs
+})
