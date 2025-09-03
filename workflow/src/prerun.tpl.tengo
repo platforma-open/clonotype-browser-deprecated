@@ -53,14 +53,15 @@ wf.body(func(args) {
 	}
 
 	if len(args.annotationSpecs.specs) > 0 {
-		columnBundleForAnnotation := util.createColumnBundle2(wf, args)
+		columnBundle := util.createColumnBundle2(wf, args)
 		calculationResult := render.createEphemeral(doCalculationsV2Tpl, {
 			blockId: blockId,
 			blockArgs: args,
-			columnBundle: columnBundleForAnnotation
+			columnBundle: columnBundle
 		})
 
 		outputs["annotationPfV2"] = pFrames.exportFrame(calculationResult.output("annotationPf"))
+		outputs["statsPfV2"] = pFrames.exportFrame(calculationResult.output("statsPf"))
 	}
 
 	return {

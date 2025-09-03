@@ -12,7 +12,7 @@ const app = useApp();
 
 const tableSettings = usePlDataTableSettingsV2({
   sourceId: () => app.model.args.annotationScript.steps.length > 0 ? app.model.args.annotationScript.steps : undefined,
-  model: () => app.model.outputs.statsTable,
+  model: () => app.model.outputs.statsTableV2,
 });
 </script>
 

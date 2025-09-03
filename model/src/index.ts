@@ -279,7 +279,7 @@ export const platforma = BlockModel.create('Heavy')
 
     // result pool is added after the pre-run ouptus so that pre-run results take precedence
     collection
-      .addColumnProvider(ctx.resultPool)
+      // .addColumnProvider(ctx.resultPool)
       .addAxisLabelProvider(ctx.resultPool);
 
     const columns = collection.getColumns(
@@ -428,15 +428,37 @@ export const platforma = BlockModel.create('Heavy')
   })
 
   .output('statsTable', (ctx) => {
-    const statsPf = ctx.prerun?.resolve({ field: 'statsPf', assertFieldType: 'Input', allowPermanentAbsence: true });
+    // const statsPf = ctx.prerun?.resolve({ field: 'statsPf', assertFieldType: 'Input', allowPermanentAbsence: true });
+    // if (statsPf && statsPf.getIsReadyOrError()) {
+    //   const columns = statsPf.getPColumns();
+    //   if (!columns) return undefined;
+
+    //   const columnsAfterSplitting = new PColumnCollection()
+    //     .addAxisLabelProvider(ctx.resultPool)
+    //     .addColumns(columns)
+    //     .getColumns({ axes: [{ split: true }, { }] });
+
+    //   if (columnsAfterSplitting === undefined) return undefined;
+
+    //   return createPlDataTableV2(
+    //     ctx,
+    //     columnsAfterSplitting,
+    //     ctx.uiState.statsTable.tableState,
+    //   );
+    // }
+    return undefined;
+  })
+
+  .output('statsTableV2', (ctx) => {
+    const statsPf = ctx.prerun?.resolve({ field: 'statsPfV2', assertFieldType: 'Input', allowPermanentAbsence: true });
     if (statsPf && statsPf.getIsReadyOrError()) {
       const columns = statsPf.getPColumns();
+
       if (!columns) return undefined;
 
       const columnsAfterSplitting = new PColumnCollection()
-        .addAxisLabelProvider(ctx.resultPool)
         .addColumns(columns)
-        .getColumns({ axes: [{ split: true }, { }] });
+        .getColumns({ axes: [{ }] });
 
       if (columnsAfterSplitting === undefined) return undefined;
 
@@ -445,6 +467,24 @@ export const platforma = BlockModel.create('Heavy')
         columnsAfterSplitting,
         ctx.uiState.statsTable.tableState,
       );
+    }
+    return undefined;
+  })
+
+  .output('debug', (ctx) => {
+    const statsPf = ctx.prerun?.resolve({ field: 'statsPfV2', assertFieldType: 'Input', allowPermanentAbsence: true });
+    if (statsPf && statsPf.getIsReadyOrError()) {
+      const columns = statsPf.getPColumns();
+
+      if (!columns) return undefined;
+
+      const columnsAfterSplitting = new PColumnCollection()
+        .addColumns(columns)
+        .getColumns({ axes: [{ }] });
+
+      if (columnsAfterSplitting === undefined) return undefined;
+
+      return columnsAfterSplitting.length;
     }
     return undefined;
   })
