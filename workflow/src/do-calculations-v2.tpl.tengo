@@ -24,7 +24,11 @@ SAMPLE_KEY_HEADER := "sample_key"
 CLONOTYPE_KEY_HEADER := "clonotype_key"
 
 // Result headers
-ANNOTATION_LABEL_HEADER := "label"
+ANNOTATION_HEADER := "annotation"
+
+// States headers
+ANNOTATION_COUNT_HEADER := "annotation_count"
+CLONOTYPE_COUNT_HEADER := "clonotype_count"
 
 // Result file
 DATA_FILE := "data.tsv"
@@ -34,11 +38,109 @@ self.awaitState("columnBundle", { wildcard: "*" }, "ref", "ResourceReady")
 self.awaitState("columnBundle", { wildcard: "*" }, "data", "InputsLocked")
 self.awaitState("columnBundle", { wildcard: "*" }, "spec", "ResourceReady")
 
+createAxisSpecFactory := func(blockId) {
+	return func(type, name, label) {
+		return {
+			type: type,
+			name: "pl7.app/clonotypeAnnotation/" + name,
+			domain: {
+				"pl7.app/clonotypeAnnotationRunId": blockId
+			},
+			annotations: {
+				"pl7.app/label": label
+			}
+		}
+	}
+}
+
+createColumnSpecFactory := func(trace, blockId) {
+	return func(type, name, label, axesSpec) {
+		return trace.inject({
+			kind: "PColumn",
+			valueType: type,
+			name: "pl7.app/clonotypeAnnotation/" + name,
+			domain: {
+				"pl7.app/clonotypeAnnotationRunId": blockId
+			},
+			axesSpec: axesSpec,
+			annotations: {
+				"pl7.app/label": label
+			}
+		})
+	}
+}
+
+
+convertToPFrame := func(dataAndSpec) {
+	pf := pFrames.pFrameBuilder()
+	for k, v in dataAndSpec {
+		pf.add(k, v.spec, v.data)
+	}
+	return pf.build()
+}
+
+createStatsPFrameFactory := func(createAxisSpec, createColumnSpec, axisLabel) {
+	return func(file) {
+		annotationsAxisSpec := createAxisSpec("String", "annotation", axisLabel)
+		statsAxesSpec := [annotationsAxisSpec]
+		importSpec := {
+			storageFormat: "Binary",
+			partitionKeyLength: 0,
+			axes: [
+				{ column: ANNOTATION_HEADER, spec: annotationsAxisSpec }
+			],
+			columns: [
+				{
+					column: ANNOTATION_COUNT_HEADER,
+					spec: createColumnSpec("Long", "stats/" + ANNOTATION_COUNT_HEADER, "Total Count of Annotations", statsAxesSpec)
+				},
+				{
+					column: CLONOTYPE_COUNT_HEADER,
+					spec: createColumnSpec("Long", "stats/" + CLONOTYPE_COUNT_HEADER, "Total Number of Clonotypes", statsAxesSpec)
+				}
+			]
+		}
+
+		statsDataAndSpec := xsv.importFile(file, "tsv", importSpec, { splitDataAndSpec: true });
+
+		return convertToPFrame(statsDataAndSpec)
+	}
+}
+
+createAnnotationPFrameFactory := func(clonotypeAxisSpec, createColumnSpec, annotationLabel) {
+	return func(dataFile) {
+		importSpec := {
+			cpu: 1,
+			mem: "12GiB",
+			storageFormat: "Binary",
+			partitionKeyLength: 0,
+			axes: [{
+				column: CLONOTYPE_KEY_HEADER,
+				spec: clonotypeAxisSpec
+			}],
+			columns: [{
+				column: ANNOTATION_HEADER,
+				spec: createColumnSpec("String", "annotation", annotationLabel, [clonotypeAxisSpec])
+			}]
+		}
+
+		dataAndSpec := xsv.importFile(dataFile, "tsv", importSpec, { splitDataAndSpec: true })
+
+		return convertToPFrame(dataAndSpec)
+	}
+}
+
 self.body(func(inputs) {
 	blockId := inputs.blockId
 	blockArgs := inputs.blockArgs
 	columnBundle := inputs.columnBundle
 	annotationSpecs := blockArgs.annotationSpecs
+
+	outputs := {}
+
+	if len(annotationSpecs.specs) == 0 {
+		return outputs
+	}
 
 	anchorSpec := columnBundle.getColumn(blockArgs.inputAnchor).spec
 	if len(anchorSpec.axesSpec) != 2 {
@@ -63,200 +165,71 @@ self.body(func(inputs) {
 	mainCountSpec := mainCount.spec
 	mainCountData := mainCount.data
 
-	outputs := {}
-
-	if len(annotationSpecs.specs) == 0 {
-		return outputs
-	}
-
-	// Preparing annotation script inputs
-	specsColumns := util.extractColumnsFromExpression(annotationSpecs) // Already returns unique list
-
-	numberOfColumns := len(specsColumns)
-
-	tableBuilder := pFrames.tsvFileBuilder().cpu(1).mem(string(1 + numberOfColumns * 2) + "GiB")
-	tableBuilder.setAxisHeader(clonotypeAxisSpec, CLONOTYPE_KEY_HEADER)
-
-	headerMap := {}
-
-	for colId in specsColumns {
-		tableBuilder.add(columnBundle.getColumn(colId))
-		header := tableBuilder.getHeader(colId)
-		spec := tableBuilder.getSpec(colId)
-		headerMap[colId] = header
-	}
-
-	finalExpressions := slices.map(annotationSpecs.specs, func(spec) {
-		return {
-			name: spec.name,
-			expression: util.mapExpressionColumnNames(spec.expression, func(colId) {
-				return headerMap[colId]
-			})
-		}
-	})
-
-	newColumnNames := slices.map(finalExpressions, func(spec) {
-		return spec.name
-	})
-
-	addLabelColumn := pt.lit(undefined).alias(ANNOTATION_LABEL_HEADER)
-	computeLabelColumn := slices.map(newColumnNames, func(colName) {
-		return pt.when(pt.col(colName)).
-			then(pt.lit(colName)).
-			otherwise(pt.col(ANNOTATION_LABEL_HEADER)).
-			alias(ANNOTATION_LABEL_HEADER)
-	})
-
-	sourceFile := tableBuilder.build()
-
-	wf := pt.workflow()
-	
-	dfData := wf.frame(sourceFile, { format: "tsv" }).
-		withColumns(finalExpressions...).
-		addColumns(addLabelColumn).
-		withColumns(computeLabelColumn...).
-		select(CLONOTYPE_KEY_HEADER, ANNOTATION_LABEL_HEADER)
-
-	// Save the data frame
-	dfData.save(DATA_FILE)
-
-	// Save the statistics
-	dfData.
-		groupBy(ANNOTATION_LABEL_HEADER).
-		agg(
-			pt.col(ANNOTATION_LABEL_HEADER).count().alias(ANNOTATION_LABEL_HEADER+"_count"),
-			pt.col(CLONOTYPE_KEY_HEADER).count().alias(CLONOTYPE_KEY_HEADER+"_count")
-		).
-		save(STATS_FILE)
-
-    // Run the defined workflow
-    ptablerResult := wf.run()
-
-	dataFile := ptablerResult.getFile(DATA_FILE)
-	statsFile := ptablerResult.getFile(STATS_FILE)
-
-	//
-	// Converting result to PColumn
-	//
-
-	fullAxesSpec := [clonotypeAxisSpec]
-	importAxesSpec := [{
-		column: CLONOTYPE_KEY_HEADER,
-		spec: { type: clonotypeAxisSpec.type }
-	}]
-
-	importedDataMap := xsv.importFile(dataFile, "tsv", {
-		axes: importAxesSpec,
-		columns: [ {
-			column: ANNOTATION_LABEL_HEADER,
-			spec: { valueType: "String" }
-		} ],
-		partitionKeyLength: 0,
-		storageFormat: "Binary",
-		mem: "12GiB",
-		cpu: 1
-	}, { dataOnly: true })
-
-	annotationData := importedDataMap.getFutureInputField(ANNOTATION_LABEL_HEADER)
-
-	annotationPfBuilder := pFrames.pFrameBuilder()
-
 	trace := pSpec.makeTrace(anchorSpec, {
 		type: "milaboratories.clonotype-annotation",
 		label: annotationSpecs.title,
 		importance: 20,
 		id: blockId
 	})
-	annotationsColumnSpec := trace.inject({
-		kind: "PColumn",
-		valueType: "String",
-		name: "pl7.app/vdj/annotation",
-		domain: {
-			"pl7.app/vdj/clonotypeAnnotationRunId": blockId
-		},
-		axesSpec: fullAxesSpec,
-		annotations: {
-			"pl7.app/label": annotationSpecs.title
+
+	createAxisSpec := createAxisSpecFactory(blockId)
+	createColumnSpec := createColumnSpecFactory(trace, blockId)
+	createStatsPFrame := createStatsPFrameFactory(createAxisSpec, createColumnSpec, annotationSpecs.title)
+	createAnnotationPFrame := createAnnotationPFrameFactory(clonotypeAxisSpec, createColumnSpec, annotationSpecs.title)
+
+	// Preparing annotation script inputs
+	specsColumns := util.extractColumnsFromExpression(annotationSpecs)
+
+	tableBuilder := pFrames.tsvFileBuilder().cpu(1).mem(string(1 + len(specsColumns) * 2) + "GiB")
+	tableBuilder.setAxisHeader(clonotypeAxisSpec, CLONOTYPE_KEY_HEADER)
+	for colId in specsColumns {
+		tableBuilder.add(columnBundle.getColumn(colId))
+	}
+	sourceFile := tableBuilder.build()
+
+	finalExpressions := slices.map(annotationSpecs.specs, func(spec) {
+		return {
+			name: spec.name,
+			expression: util.mapExpressionColumnNames(spec.expression, func(colId) {
+				return tableBuilder.getHeader(colId)
+			})
 		}
 	})
 
-	annotationPfBuilder.add("annotation", annotationsColumnSpec, annotationData)
+	newColumnNamesReversed := slices.reverse(slices.map(finalExpressions, func(spec) {
+		return spec.name
+	}))
 
-	outputs["annotationPf"] = annotationPfBuilder.build()
+	annotationColumnExpr := slices.
+		reduce(newColumnNamesReversed, func(acc, colName) {
+			return pt.when(pt.col(colName)).then(pt.lit(colName))
+		}, pt).
+		otherwise(pt.lit(undefined)).
+		alias(ANNOTATION_HEADER)
 
-	//
-	// Exporting statistics
-	//
+	wf := pt.workflow()
+	
+	dfData := wf.frame(sourceFile, { format: "tsv" }).
+		withColumns(finalExpressions...).
+		withColumns(annotationColumnExpr).
+		select(CLONOTYPE_KEY_HEADER, ANNOTATION_HEADER)
+	dfStats := dfData.
+		groupBy(ANNOTATION_HEADER).
+		agg(
+			pt.col(ANNOTATION_HEADER).count().alias(ANNOTATION_COUNT_HEADER),
+			pt.col(CLONOTYPE_KEY_HEADER).count().alias(CLONOTYPE_COUNT_HEADER)
+		)
 
-	annotationsAxisSpec := {
-		type: "String",
-		name: "pl7.app/annotation",
-		domain: {
-			"pl7.app/clonotypeAnnotationRunId": blockId
-		},
-		annotations: {
-			"pl7.app/label": annotationSpecs.title
-		}
-	}
+	dfData.save(DATA_FILE)
+	dfStats.save(STATS_FILE)
 
-	statsAxesSpec := [annotationsAxisSpec]
+    wfResult := wf.run()
 
-	statsImportSpec := {
-		axes: [
-			{ column: ANNOTATION_LABEL_HEADER, spec: annotationsAxisSpec }
-		],
-		columns: [
-			{ column: ANNOTATION_LABEL_HEADER+"_count", spec: {
-					valueType: "Long", 
-					name: ANNOTATION_LABEL_HEADER+"_count",
-					annotations: {
-						"pl7.app/label": "Total Count of Annotations"
-					}
-				}
-			},
-			{ column: CLONOTYPE_KEY_HEADER+"_count", spec: { name: CLONOTYPE_KEY_HEADER+"_count", valueType: "Long", annotations: {
-					"pl7.app/label": "Total Number of Clonotypes"
-				} } }
-		],
-		partitionKeyLength: 0,
-		storageFormat: "Binary"
-	}
+	dataFile := wfResult.getFile(DATA_FILE)
+	statsFile := wfResult.getFile(STATS_FILE)
 
-	statsImportedMap := xsv.importFile(statsFile, "tsv", statsImportSpec, { splitDataAndSpec: true, mem: "12GiB", cpu: 1 });
-
-	statsPfBuilder := pFrames.pFrameBuilder()
-	for k, v in statsImportedMap {
-		statsPfBuilder.add(k, v.spec, v.data)
-	}
-
-	// labelCountData := statsImportedMap.getFutureInputField(ANNOTATION_LABEL_HEADER+"_count")
-	// clonotypeKeyCountData := statsImportedMap.getFutureInputField(CLONOTYPE_KEY_HEADER+"_count")
-
-	// labelCountSpec := trace.inject({
-	// 	kind: "PColumn",
-	// 	name: "pl7.app/vdj/stats/labelCount",
-	// 	valueType: "Long",
-	// 	axesSpec: statsAxesSpec,
-	// 	annotations: {
-	// 		"pl7.app/label": "Total Count of Annotations"
-	// 	}
-	// })
-
-	// clonotypeKeyCountSpec := trace.inject({
-	// 	kind: "PColumn",
-	// 	name: "pl7.app/vdj/stats/clonotypeKeyCount",
-	// 	valueType: "Long",
-	// 	axesSpec: statsAxesSpec,
-	// 	annotations: {
-	// 		"pl7.app/label": "Total Number of Clonotypes"
-	// 	}
-	// })
-
-	// statsPfBuilder := pFrames.pFrameBuilder()
-	// statsPfBuilder.add("labelCount", labelCountSpec, labelCountData)
-	// statsPfBuilder.add("clonotypeKeyCount", clonotypeKeyCountSpec, clonotypeKeyCountData)
-
-	outputs["statsPf"] = statsPfBuilder.build()
+	outputs["annotationPf"] = createAnnotationPFrame(dataFile);
+	outputs["statsPf"] = createStatsPFrame(statsFile)
 
 	return outputs
 })
