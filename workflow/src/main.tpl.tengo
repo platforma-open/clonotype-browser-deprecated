@@ -3,8 +3,9 @@ wf := import("@platforma-sdk/workflow-tengo:workflow")
 assets := import("@platforma-sdk/workflow-tengo:assets")
 render := import("@platforma-sdk/workflow-tengo:render")
 util := import(":util")
+pFrames := import("@platforma-sdk/workflow-tengo:pframes")
 
-doCalculations := assets.importTemplate(":do-calculations")
+doCalculations := assets.importTemplate(":do-calculations-v2")
 exportTable := assets.importTemplate(":export-table")
 
 wf.setPreRun(assets.importTemplate(":prerun"))
@@ -22,12 +23,13 @@ wf.body(func(args) {
 	exports := {}
 	outputs := {}
 
-	if len(args.annotationScript.steps) > 0 {
-		columnBundleForAnnotation := util.createColumnBundle(wf, args)
+	if len(args.annotationSpecs.specs) > 0 {
+		columnBundle := util.createColumnBundle2(wf, args)
 		calculationResult := render.createEphemeral(doCalculations, {
 			blockId: blockId,
 			blockArgs: args,
-			columnBundle: columnBundleForAnnotation
+			columnBundle: columnBundle,
+			computeFilters: true
 		})
 
 		exports["annotationPf"] = calculationResult.output("annotationPf")
@@ -40,3 +42,4 @@ wf.body(func(args) {
 		exports: exports
 	}
 })
+

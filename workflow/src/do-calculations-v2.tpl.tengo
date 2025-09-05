@@ -1,3 +1,4 @@
+rand := import("rand")
 self := import("@platforma-sdk/workflow-tengo:tpl")
 pt := import("@platforma-sdk/workflow-tengo:pt")
 wf := import("@platforma-sdk/workflow-tengo:workflow")
@@ -15,12 +16,10 @@ assets := import("@platforma-sdk/workflow-tengo:assets")
 json := import("json")
 text := import("text")
 math := import("math")
-strings := import("@platforma-sdk/workflow-tengo:strings")
 
 util := import(":util")
 
 // Input headers
-SAMPLE_KEY_HEADER := "sample_key"
 CLONOTYPE_KEY_HEADER := "clonotype_key"
 
 // Result headers
@@ -37,6 +36,10 @@ STATS_FILE := "stats.tsv"
 self.awaitState("columnBundle", { wildcard: "*" }, "ref", "ResourceReady")
 self.awaitState("columnBundle", { wildcard: "*" }, "data", "InputsLocked")
 self.awaitState("columnBundle", { wildcard: "*" }, "spec", "ResourceReady")
+
+createFilterFileName := func(colName) {
+	return colName + "_filter.tsv"
+}
 
 createAxisSpecFactory := func(blockId) {
 	return func(type, name, label) {
@@ -70,13 +73,35 @@ createColumnSpecFactory := func(trace, blockId) {
 	}
 }
 
-
 convertToPFrame := func(dataAndSpec) {
 	pf := pFrames.pFrameBuilder()
 	for k, v in dataAndSpec {
 		pf.add(k, v.spec, v.data)
 	}
 	return pf.build()
+}
+
+createAnnotationPFrameFactory := func(clonotypeAxisSpec, createColumnSpec, annotationLabel) {
+	return func(dataFile) {
+		importSpec := {
+			cpu: 1,
+			mem: "12GiB",
+			storageFormat: "Binary",
+			partitionKeyLength: 0,
+			axes: [{
+				column: CLONOTYPE_KEY_HEADER,
+				spec: clonotypeAxisSpec
+			}],
+			columns: [{
+				column: ANNOTATION_HEADER,
+				spec: createColumnSpec("String", "annotation", annotationLabel, [clonotypeAxisSpec])
+			}]
+		}
+
+		dataAndSpec := xsv.importFile(dataFile, "tsv", importSpec, { splitDataAndSpec: true })
+
+		return convertToPFrame(dataAndSpec)
+	}
 }
 
 createStatsPFrameFactory := func(createAxisSpec, createColumnSpec, axisLabel) {
@@ -107,11 +132,20 @@ createStatsPFrameFactory := func(createAxisSpec, createColumnSpec, axisLabel) {
 	}
 }
 
-createAnnotationPFrameFactory := func(clonotypeAxisSpec, createColumnSpec, annotationLabel) {
-	return func(dataFile) {
+createFilterDataAndSpecFactory := func(clonotypeAxisSpec, createColumnSpec) {
+	return func(file, colName, label) {
+		filterColumnSpec := maps.deepMerge(createColumnSpec("Int", "filter", label, [clonotypeAxisSpec]), {
+			domain: {
+				"pl7.app/filterLabel": label
+			},
+			annotations: {
+				"pl7.app/isSubset": "true"
+			}
+		});
+		
 		importSpec := {
 			cpu: 1,
-			mem: "12GiB",
+			mem: "8GiB",
 			storageFormat: "Binary",
 			partitionKeyLength: 0,
 			axes: [{
@@ -119,21 +153,32 @@ createAnnotationPFrameFactory := func(clonotypeAxisSpec, createColumnSpec, annot
 				spec: clonotypeAxisSpec
 			}],
 			columns: [{
-				column: ANNOTATION_HEADER,
-				spec: createColumnSpec("String", "annotation", annotationLabel, [clonotypeAxisSpec])
+				column: colName,
+				spec: filterColumnSpec
 			}]
 		}
 
-		dataAndSpec := xsv.importFile(dataFile, "tsv", importSpec, { splitDataAndSpec: true })
-
-		return convertToPFrame(dataAndSpec)
+		return xsv.importFile(file, "tsv", importSpec, { splitDataAndSpec: true })
 	}
+}
+
+createFiltersPFrame := func(specAndDataArray) {
+	pf := pFrames.pFrameBuilder()
+
+	for dataAndSpec in specAndDataArray {
+		for k, v in dataAndSpec {
+			pf.add(k, v.spec, v.data)
+		}
+	}
+
+	return pf.build()
 }
 
 self.body(func(inputs) {
 	blockId := inputs.blockId
 	blockArgs := inputs.blockArgs
 	columnBundle := inputs.columnBundle
+	computeFilters := inputs.computeFilters
 	annotationSpecs := blockArgs.annotationSpecs
 
 	outputs := {}
@@ -176,6 +221,7 @@ self.body(func(inputs) {
 	createColumnSpec := createColumnSpecFactory(trace, blockId)
 	createStatsPFrame := createStatsPFrameFactory(createAxisSpec, createColumnSpec, annotationSpecs.title)
 	createAnnotationPFrame := createAnnotationPFrameFactory(clonotypeAxisSpec, createColumnSpec, annotationSpecs.title)
+	createFilterDataAndSpec := createFilterDataAndSpecFactory(clonotypeAxisSpec, createColumnSpec)
 
 	// Preparing annotation script inputs
 	specsColumns := util.extractColumnsFromExpression(annotationSpecs)
@@ -187,22 +233,26 @@ self.body(func(inputs) {
 	}
 	sourceFile := tableBuilder.build()
 
+	columnNameManager := util.createColumnNameManager()
+
 	finalExpressions := slices.map(annotationSpecs.specs, func(spec) {
 		return {
-			name: spec.name,
+			name: columnNameManager.toSafe(spec.name),
 			expression: util.mapExpressionColumnNames(spec.expression, func(colId) {
 				return tableBuilder.getHeader(colId)
 			})
 		}
 	})
 
-	newColumnNamesReversed := slices.reverse(slices.map(finalExpressions, func(spec) {
+	safeColumnNames := slices.map(finalExpressions, func(spec) {
 		return spec.name
-	}))
+	})
+	filterSafeColumnNames := computeFilters ? safeColumnNames : [];
+	safeColumnNamesReversed := slices.reverse(safeColumnNames)
 
 	annotationColumnExpr := slices.
-		reduce(newColumnNamesReversed, func(acc, colName) {
-			return pt.when(pt.col(colName)).then(pt.lit(colName))
+		reduce(safeColumnNamesReversed, func(exp, colName) {
+			return exp.when(pt.col(colName)).then(pt.lit(columnNameManager.fromSafe(colName)))
 		}, pt).
 		otherwise(pt.lit(undefined)).
 		alias(ANNOTATION_HEADER)
@@ -211,25 +261,43 @@ self.body(func(inputs) {
 	
 	dfData := wf.frame(sourceFile, { format: "tsv" }).
 		withColumns(finalExpressions...).
-		withColumns(annotationColumnExpr).
-		select(CLONOTYPE_KEY_HEADER, ANNOTATION_HEADER)
-	dfStats := dfData.
+		withColumns(annotationColumnExpr)
+
+	dfData.
+		select(CLONOTYPE_KEY_HEADER, ANNOTATION_HEADER).
+	    save(DATA_FILE)
+
+	dfData.
+		select(CLONOTYPE_KEY_HEADER, ANNOTATION_HEADER).
 		groupBy(ANNOTATION_HEADER).
 		agg(
 			pt.col(ANNOTATION_HEADER).count().alias(ANNOTATION_COUNT_HEADER),
 			pt.col(CLONOTYPE_KEY_HEADER).count().alias(CLONOTYPE_COUNT_HEADER)
-		)
+		).
+		save(STATS_FILE)
 
-	dfData.save(DATA_FILE)
-	dfStats.save(STATS_FILE)
-
+	for colName in filterSafeColumnNames {
+		dfData.
+			filter(pt.col(ANNOTATION_HEADER).eq(pt.lit(columnNameManager.fromSafe(colName)))).
+			withColumns(pt.lit(1).alias(ANNOTATION_HEADER).alias(colName)).
+			select(CLONOTYPE_KEY_HEADER, colName).
+			save(createFilterFileName(colName))
+	}
+	
     wfResult := wf.run()
 
 	dataFile := wfResult.getFile(DATA_FILE)
 	statsFile := wfResult.getFile(STATS_FILE)
+	filterFiles := slices.map(filterSafeColumnNames, func(colName) {
+		return { name: colName, file: wfResult.getFile(createFilterFileName(colName)) }
+	})
 
 	outputs["annotationPf"] = createAnnotationPFrame(dataFile);
 	outputs["statsPf"] = createStatsPFrame(statsFile)
+	outputs["filtersPf"] = createFiltersPFrame(slices.map(filterFiles, func(v) {
+		return createFilterDataAndSpec(v.file, v.name, columnNameManager.fromSafe(v.name))
+	}))
 
 	return outputs
 })
+

@@ -1,11 +1,13 @@
+rand := import("rand")
+json := import("json")
 ll := import("@platforma-sdk/workflow-tengo:ll")
 smart := import("@platforma-sdk/workflow-tengo:smart")
 assets := import("@platforma-sdk/workflow-tengo:assets")
 render := import("@platforma-sdk/workflow-tengo:render")
 pBundle := import("@platforma-sdk/workflow-tengo:pframes.bundle")
 sets := import("@platforma-sdk/workflow-tengo:sets")
-json := import("json")
 maps := import("@platforma-sdk/workflow-tengo:maps")
+strings := import("@platforma-sdk/workflow-tengo:strings")
 canonical := import("@platforma-sdk/workflow-tengo:canonical")
 
 mainFractionColumn := {
@@ -460,6 +462,21 @@ createColumnBundle2 := func(wf, args) {
 	return bundleBuilder.build()
 }
 
+createColumnNameManager := func() {
+	safeToName := {}
+
+	return {
+		toSafe: func(name) {
+			safe := strings.substituteSpecialCharacters(name) + "_" + string(rand.int())
+			safeToName[safe] = name;
+			return safe
+		},
+		fromSafe: func(safe) {
+			return safeToName[safe]
+		}
+	}
+}
+
 
 export ll.toStrict({
 	mainFractionColumn: mainFractionColumn,
@@ -471,6 +488,7 @@ export ll.toStrict({
 	extractAnnotationLabels: extractAnnotationLabels,
 
 	createColumnBundle2: createColumnBundle2,
+	createColumnNameManager: createColumnNameManager,
 	mapExpressionColumnNames: mapExpressionColumnNames,
 	extractColumnsFromExpression: extractColumnsFromExpression
 })

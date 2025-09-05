@@ -279,7 +279,7 @@ export const platforma = BlockModel.create('Heavy')
 
     // result pool is added after the pre-run ouptus so that pre-run results take precedence
     collection
-      // .addColumnProvider(ctx.resultPool)
+      .addColumnProvider(ctx.resultPool)
       .addAxisLabelProvider(ctx.resultPool);
 
     const columns = collection.getColumns(
@@ -307,6 +307,34 @@ export const platforma = BlockModel.create('Heavy')
       if (column.spec.annotations?.['pl7.app/isAbundance'] === 'true' && column.spec.name !== 'pl7.app/vdj/sampleCount')
         column.spec.annotations['pl7.app/table/visibility'] = 'optional';
     });
+
+    return createPlDataTableV2(
+      ctx,
+      columns,
+      ctx.uiState.overlapTable.tableState,
+    );
+  })
+
+  .output('filtersPf', (ctx) => {
+    if (ctx.args.inputAnchor === undefined)
+      return undefined;
+
+    const anchorCtx = ctx.resultPool.resolveAnchorCtx({ main: ctx.args.inputAnchor });
+    if (!anchorCtx) return undefined;
+
+    const collection = new PColumnCollection();
+
+    const annotation = ctx.prerun?.resolve({ field: 'filtersPf', assertFieldType: 'Input', allowPermanentAbsence: true })?.getPColumns();
+    if (annotation) collection.addColumns(annotation);
+
+    // result pool is added after the pre-run ouptus so that pre-run results take precedence
+    collection
+      // .addColumnProvider(ctx.resultPool)
+      .addAxisLabelProvider(ctx.resultPool);
+
+    const columns = collection.getColumns({ axes: [{ }] });
+
+    if (!columns) return undefined;
 
     return createPlDataTableV2(
       ctx,
@@ -467,24 +495,6 @@ export const platforma = BlockModel.create('Heavy')
         columnsAfterSplitting,
         ctx.uiState.statsTable.tableState,
       );
-    }
-    return undefined;
-  })
-
-  .output('debug', (ctx) => {
-    const statsPf = ctx.prerun?.resolve({ field: 'statsPfV2', assertFieldType: 'Input', allowPermanentAbsence: true });
-    if (statsPf && statsPf.getIsReadyOrError()) {
-      const columns = statsPf.getPColumns();
-
-      if (!columns) return undefined;
-
-      const columnsAfterSplitting = new PColumnCollection()
-        .addColumns(columns)
-        .getColumns({ axes: [{ }] });
-
-      if (columnsAfterSplitting === undefined) return undefined;
-
-      return columnsAfterSplitting.length;
     }
     return undefined;
   })

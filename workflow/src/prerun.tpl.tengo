@@ -8,8 +8,7 @@ pFrames := import("@platforma-sdk/workflow-tengo:pframes")
 
 util := import(":util")
 
-doCalculationsTpl := assets.importTemplate(":do-calculations")
-doCalculationsV2Tpl := assets.importTemplate(":do-calculations-v2")
+doCalculations := assets.importTemplate(":do-calculations-v2")
 exportTableTpl := assets.importTemplate(":export-table")
 
 wf.body(func(args) {
@@ -40,28 +39,18 @@ wf.body(func(args) {
 	outputs["tsvZip"] = exportResult.output("tsvZip")
 	outputs["exportDebug"] = exportResult.output("exportDebug")
 
-	if len(args.annotationScript.steps) > 0 {
-		columnBundleForAnnotation := util.createColumnBundle(wf, args)
-		calculationResult := render.createEphemeral(doCalculationsTpl, {
-			blockId: blockId,
-			blockArgs: args,
-			columnBundle: columnBundleForAnnotation
-		})
-
-		outputs["annotationPf"] = pFrames.exportFrame(calculationResult.output("annotationPf"))
-		outputs["statsPf"] = pFrames.exportFrame(calculationResult.output("statsPf"))
-	}
-
 	if len(args.annotationSpecs.specs) > 0 {
 		columnBundle := util.createColumnBundle2(wf, args)
-		calculationResult := render.createEphemeral(doCalculationsV2Tpl, {
+		calculationResult := render.createEphemeral(doCalculations, {
 			blockId: blockId,
 			blockArgs: args,
-			columnBundle: columnBundle
+			columnBundle: columnBundle,
+			computeFilters: true
 		})
 
 		outputs["annotationPfV2"] = pFrames.exportFrame(calculationResult.output("annotationPf"))
 		outputs["statsPfV2"] = pFrames.exportFrame(calculationResult.output("statsPf"))
+		outputs["filtersPf"] = pFrames.exportFrame(calculationResult.output("filtersPf"))
 	}
 
 	return {
