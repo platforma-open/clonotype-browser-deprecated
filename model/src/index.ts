@@ -15,10 +15,8 @@ import type {
 } from '@platforma-sdk/model';
 import {
   BlockModel,
-  createPlDataTableSheet,
   createPlDataTableStateV2,
   createPlDataTableV2,
-  getUniquePartitionKeys,
   PColumnCollection,
 } from '@platforma-sdk/model';
 import omit from 'lodash.omit';
@@ -249,10 +247,6 @@ export const platforma = BlockModel.create('Heavy')
     );
   })
 
-  // .output('exportDebug', (ctx) => {
-  //   return ctx.prerun?.resolve('exportDebug')?.getDataAsJson();
-  // })
-
   .output('exportedTsvZip', (ctx) => {
     if (ctx.args.inputAnchor === undefined)
       return undefined;
@@ -265,83 +259,6 @@ export const platforma = BlockModel.create('Heavy')
     return tsvResource.getRemoteFileHandle();
   })
 
-  .output('overlapTableV2', (ctx) => {
-    if (ctx.args.inputAnchor === undefined)
-      return undefined;
-
-    const anchorCtx = ctx.resultPool.resolveAnchorCtx({ main: ctx.args.inputAnchor });
-    if (!anchorCtx) return undefined;
-
-    const collection = new PColumnCollection();
-
-    const annotation = ctx.prerun?.resolve({ field: 'annotationPfV2', assertFieldType: 'Input', allowPermanentAbsence: true })?.getPColumns();
-    if (annotation) collection.addColumns(annotation);
-
-    // result pool is added after the pre-run ouptus so that pre-run results take precedence
-    collection
-      .addColumnProvider(ctx.resultPool)
-      .addAxisLabelProvider(ctx.resultPool);
-
-    const columns = collection.getColumns(
-      [{
-        domainAnchor: 'main',
-        axes: [
-          { split: true },
-          { anchor: 'main', idx: 1 },
-        ],
-        annotations: {
-          'pl7.app/isAbundance': 'true',
-        },
-      }, {
-        domainAnchor: 'main',
-        axes: [
-          { anchor: 'main', idx: 1 },
-        ],
-      }],
-      { anchorCtx, exclude: commonExcludes },
-    );
-
-    if (!columns) return undefined;
-
-    columns.forEach((column) => {
-      if (column.spec.annotations?.['pl7.app/isAbundance'] === 'true' && column.spec.name !== 'pl7.app/vdj/sampleCount')
-        column.spec.annotations['pl7.app/table/visibility'] = 'optional';
-    });
-
-    return createPlDataTableV2(
-      ctx,
-      columns,
-      ctx.uiState.overlapTable.tableState,
-    );
-  })
-
-  .output('debugPf', (ctx) => {
-    if (ctx.args.inputAnchor === undefined)
-      return undefined;
-
-    const anchorCtx = ctx.resultPool.resolveAnchorCtx({ main: ctx.args.inputAnchor });
-    if (!anchorCtx) return undefined;
-
-    const collection = new PColumnCollection();
-
-    const annotation = ctx.prerun?.resolve({ field: 'localStatsPf', assertFieldType: 'Input', allowPermanentAbsence: true })?.getPColumns();
-    if (annotation) collection.addColumns(annotation);
-
-    // result pool is added after the pre-run ouptus so that pre-run results take precedence
-    collection
-      .addAxisLabelProvider(ctx.resultPool);
-
-    const columns = collection.getColumns({ axes: [{ }] });
-
-    if (!columns) return undefined;
-
-    return createPlDataTableV2(
-      ctx,
-      columns,
-      ctx.uiState.overlapTable.tableState,
-    );
-  })
-
   .output('overlapTable', (ctx) => {
     if (ctx.args.inputAnchor === undefined)
       return undefined;
@@ -351,9 +268,6 @@ export const platforma = BlockModel.create('Heavy')
 
     const collection = new PColumnCollection();
 
-    const aggregates = ctx.prerun?.resolve({ field: 'aggregatesPf', assertFieldType: 'Input', allowPermanentAbsence: true })?.getPColumns();
-    if (aggregates) collection.addColumns(aggregates);
-
     const annotation = ctx.prerun?.resolve({ field: 'annotationPf', assertFieldType: 'Input', allowPermanentAbsence: true })?.getPColumns();
     if (annotation) collection.addColumns(annotation);
 
@@ -383,11 +297,6 @@ export const platforma = BlockModel.create('Heavy')
 
     if (!columns) return undefined;
 
-    columns.forEach((column) => {
-      if (column.spec.annotations?.['pl7.app/isAbundance'] === 'true' && column.spec.name !== 'pl7.app/vdj/sampleCount')
-        column.spec.annotations['pl7.app/table/visibility'] = 'optional';
-    });
-
     return createPlDataTableV2(
       ctx,
       columns,
@@ -395,77 +304,18 @@ export const platforma = BlockModel.create('Heavy')
     );
   })
 
-  .output('perSampleTableSheets', (ctx) => {
-    if (ctx.args.inputAnchor === undefined) return undefined;
-
-    const anchor = ctx.resultPool.getPColumnByRef(ctx.args.inputAnchor);
-    if (!anchor) return undefined;
-
-    const samples = getUniquePartitionKeys(anchor.data)?.[0];
-    if (!samples) return undefined;
-
-    return [createPlDataTableSheet(ctx, anchor.spec.axesSpec[0], samples)];
-  })
-
-  .output('perSampleTable', (ctx) => {
-    if (ctx.args.inputAnchor === undefined) return undefined;
-
-    const anchor = ctx.resultPool.getPColumnByRef(ctx.args.inputAnchor);
-    if (!anchor) return undefined;
-
-    const anchorCtx = ctx.resultPool.resolveAnchorCtx({ main: ctx.args.inputAnchor });
-    if (!anchorCtx) return undefined;
-
-    const collection = new PColumnCollection();
-
-    const annotation = ctx.prerun?.resolve({ field: 'annotationPf', assertFieldType: 'Input', allowPermanentAbsence: true })?.getPColumns();
-    if (annotation) collection.addColumns(annotation);
-
-    // result pool is added after the pre-run ouptus so that pre-run results take precedence
-    collection
-      .addColumnProvider(ctx.resultPool)
-      .addAxisLabelProvider(ctx.resultPool);
-
-    const columns = collection.getColumns(
-      [{
-        domainAnchor: 'main',
-        axes: [
-          { anchor: 'main', idx: 0 },
-          { anchor: 'main', idx: 1 },
-        ],
-      }, {
-        domainAnchor: 'main',
-        axes: [
-          { anchor: 'main', idx: 1 },
-        ],
-      }],
-      {
-        anchorCtx,
-        exclude: commonExcludes,
-      },
-    );
-
-    if (!columns) return undefined;
-
-    return createPlDataTableV2(
-      ctx,
-      columns,
-      ctx.uiState.perSampleTable.tableState,
-    );
-  })
-
-  .output('statsTableV3', (ctx) => {
+  .output('statsTable', (ctx) => {
     const allColumns = [];
-    const statsPf = ctx.prerun?.resolve({ field: 'statsPfV2', assertFieldType: 'Input', allowPermanentAbsence: true });
-    if (statsPf && statsPf.getIsReadyOrError()) {
-      const columns = statsPf.getPColumns();
+    const annotationStatsPf = ctx.prerun?.resolve({ field: 'annotationStatsPf', assertFieldType: 'Input', allowPermanentAbsence: true });
+    if (annotationStatsPf && annotationStatsPf.getIsReadyOrError()) {
+      const columns = annotationStatsPf.getPColumns();
       if (columns) {
         allColumns.push(columns);
       }
     }
-    const localStatsPf = ctx.prerun?.resolve({ field: 'localStatsPf', assertFieldType: 'Input', allowPermanentAbsence: true });
-    if (localStatsPf && localStatsPf.getIsReadyOrError()) {
-      const columns = localStatsPf.getPColumns();
+    const sampleStatsPf = ctx.prerun?.resolve({ field: 'sampleStatsPf', assertFieldType: 'Input', allowPermanentAbsence: true });
+    if (sampleStatsPf && sampleStatsPf.getIsReadyOrError()) {
+      const columns = sampleStatsPf.getPColumns();
       if (columns) {
         allColumns.push(columns);
       }
@@ -481,9 +331,12 @@ export const platforma = BlockModel.create('Heavy')
     }
 
     const columnsAfterSplitting = collection
-      // .getColumns([{ axes: [{ }] }]);
-      // .getColumns({ axes: [{ split: true }, { }] });
-      .getColumns([{ axes: [{ }] }, { axes: [{ split: true }, { }] }]);
+      .getColumns([
+        // annotationStatsPf without split
+        { axes: [{ }] },
+        // sampleStatsPf with split sampleId
+        { axes: [{ split: true }, { }] },
+      ]);
 
     if (columnsAfterSplitting === undefined) return undefined;
 
@@ -492,53 +345,6 @@ export const platforma = BlockModel.create('Heavy')
       columnsAfterSplitting,
       ctx.uiState.statsTable.tableState,
     );
-  })
-
-  .output('statsTableV4', (ctx) => {
-    const localStatsPf = ctx.prerun?.resolve({ field: 'localStatsPf', assertFieldType: 'Input', allowPermanentAbsence: true });
-    if (!localStatsPf || !localStatsPf.getIsReadyOrError()) return undefined;
-
-    const columns = localStatsPf.getPColumns();
-    if (!columns) return undefined;
-
-    const collection = new PColumnCollection()
-      .addAxisLabelProvider(ctx.resultPool)
-      .addColumns(columns);
-
-    const columnsAfterSplitting = collection
-      // .getColumns([{ axes: [{ }] }]);
-      // .getColumns({ axes: [{ split: true }, { }] });
-      .getColumns([{ axes: [{ }] }, { axes: [{ split: true }, { }] }]);
-
-    if (columnsAfterSplitting === undefined) return undefined;
-
-    return createPlDataTableV2(
-      ctx,
-      columnsAfterSplitting,
-      ctx.uiState.statsTable.tableState,
-    );
-  })
-
-  .output('statsTableV2', (ctx) => {
-    const statsPf = ctx.prerun?.resolve({ field: 'statsPfV2', assertFieldType: 'Input', allowPermanentAbsence: true });
-    if (statsPf && statsPf.getIsReadyOrError()) {
-      const columns = statsPf.getPColumns();
-
-      if (!columns) return undefined;
-
-      const collectedColumns = new PColumnCollection()
-        .addColumns(columns)
-        .getColumns({ axes: [{ }] });
-
-      if (collectedColumns === undefined) return undefined;
-
-      return createPlDataTableV2(
-        ctx,
-        collectedColumns,
-        ctx.uiState.statsTable.tableState,
-      );
-    }
-    return undefined;
   })
 
   .sections((ctx) => {

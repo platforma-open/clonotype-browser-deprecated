@@ -21,7 +21,7 @@ function setAnchorColumn(ref: PlRef | undefined) {
 
 const tableSettings = usePlDataTableSettingsV2({
   sourceId: () => app.model.args.annotationSpecs.specs.length > 0 ? app.model.args.annotationSpecs.specs : undefined,
-  model: () => app.model.outputs.statsTableV2,
+  model: () => app.model.outputs.statsTable,
 });
 </script>
 

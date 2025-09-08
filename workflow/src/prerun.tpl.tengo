@@ -24,6 +24,7 @@ wf.body(func(args) {
 	blockId := wf.blockId().getDataAsJson()
 
 	outputs := {}
+	exports := {}
 
 	bundleBuilderForExport := wf.createPBundleBuilder()
 
@@ -48,14 +49,16 @@ wf.body(func(args) {
 			computeFilters: true
 		})
 
-		outputs["annotationPfV2"] = pFrames.exportFrame(calculationResult.output("annotationPf"))
-		outputs["statsPfV2"] = pFrames.exportFrame(calculationResult.output("statsPf"))
-		outputs["filtersPf"] = pFrames.exportFrame(calculationResult.output("filtersPf"))
-		outputs["localStatsPf"] = pFrames.exportFrame(calculationResult.output("localStatsPf"))
+		outputs["annotationPf"] = pFrames.exportFrame(calculationResult.output("annotationPf"))
+		// outputs["filtersPf"] = pFrames.exportFrame(calculationResult.output("filtersPf"))
+		outputs["annotationStatsPf"] = pFrames.exportFrame(calculationResult.output("annotationStatsPf"))
+		outputs["sampleStatsPf"] = pFrames.exportFrame(calculationResult.output("sampleStatsPf"))
+
+		exports["filtersPf"] = pFrames.exportFrame(calculationResult.output("filtersPf"))
 	}
 
 	return {
 		outputs: outputs,
-		exports: {}
+		exports: exports
 	}
 })

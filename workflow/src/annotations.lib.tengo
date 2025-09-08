@@ -1,0 +1,210 @@
+self := import("@platforma-sdk/workflow-tengo:tpl")
+pt := import("@platforma-sdk/workflow-tengo:pt")
+wf := import("@platforma-sdk/workflow-tengo:workflow")
+ll := import("@platforma-sdk/workflow-tengo:ll")
+xsv := import("@platforma-sdk/workflow-tengo:pframes.xsv")
+pFrames := import("@platforma-sdk/workflow-tengo:pframes")
+maps := import("@platforma-sdk/workflow-tengo:maps")
+slices := import("@platforma-sdk/workflow-tengo:slices")
+util := import(":util")
+
+// Result headers
+ANNOTATION_HEADER := "annotation"
+
+// Result file
+DATA_FILE := "data.tsv"
+
+createFilterFileName := func(colName) {
+	return colName + "_filter.tsv"
+}
+
+createAxisSpecFactory := func(blockId) {
+	return func(type, name, label) {
+		return {
+			type: type,
+			name: "pl7.app/clonotypeAnnotation/" + name,
+			domain: {
+				"pl7.app/clonotypeAnnotationRunId": blockId
+			},
+			annotations: {
+				"pl7.app/label": label
+			}
+		}
+	}
+}
+
+createColumnSpecFactory := func(trace, blockId) {
+	return func(type, name, label, axesSpec) {
+		return trace.inject({
+			kind: "PColumn",
+			valueType: type,
+			name: "pl7.app/clonotypeAnnotation/" + name,
+			domain: {
+				"pl7.app/clonotypeAnnotationRunId": blockId
+			},
+			axesSpec: axesSpec,
+			annotations: {
+				"pl7.app/label": label
+			}
+		})
+	}
+}
+
+createAnnotationsDataAndSpecFactory := func(mainAxis, createColumnSpec, annotationLabel) {
+	return func(dataFile) {
+		importSpec := {
+			cpu: 1,
+			mem: "12GiB",
+			storageFormat: "Binary",
+			partitionKeyLength: 0,
+			axes: [mainAxis],
+			columns: [{
+				column: ANNOTATION_HEADER,
+				spec: createColumnSpec("String", ANNOTATION_HEADER, annotationLabel, [mainAxis.spec])
+			}]
+		}
+
+		return xsv.importFile(dataFile, "tsv", importSpec, { splitDataAndSpec: true })
+	}
+}
+
+createFilterDataAndSpecFactory := func(mainAxis, createColumnSpec) {
+	return func(file, colName, label) {
+		filterColumnSpec := maps.deepMerge(createColumnSpec("Int", "filter", label, [mainAxis.spec]), {
+			domain: {
+				"pl7.app/filterLabel": label
+			},
+			annotations: {
+				"pl7.app/isSubset": "true"
+			}
+		});
+		
+		importSpec := {
+			cpu: 1,
+			mem: "8GiB",
+			storageFormat: "Binary",
+			partitionKeyLength: 0,
+			axes: [mainAxis],
+			columns: [{
+				column: colName,
+				spec: filterColumnSpec
+			}]
+		}
+
+		return xsv.importFile(file, "tsv", importSpec, { splitDataAndSpec: true })
+	}
+}
+
+computeAnnotations := func(inputs) {
+	outputs := {}
+
+	annotationSpecs := inputs.annotationScript
+	
+	// { column: Header, spec: Spec }
+	mainAxis := inputs.mainAxis
+	columnBundle := inputs.columnBundle
+	
+	blockId := inputs.blockId
+	traceSpec := inputs.traceSpec
+	
+	// boolean
+	computeFilters := inputs.computeFilters
+
+	if len(annotationSpecs.specs) == 0 {
+		return outputs
+	}
+
+	createAxisSpec := createAxisSpecFactory(blockId)
+	createColumnSpec := createColumnSpecFactory(traceSpec, blockId)
+	
+	annotationsAxisSpec := createAxisSpec("String", ANNOTATION_HEADER, annotationSpecs.title)
+	
+	createAnnotationsDataAndSpec := createAnnotationsDataAndSpecFactory(mainAxis, createColumnSpec, annotationSpecs.title)
+	createFilterDataAndSpec := createFilterDataAndSpecFactory(mainAxis, createColumnSpec)
+
+	// Preparing annotation script inputs
+	specsColumns := util.extractColumnsFromExpression(annotationSpecs)
+
+	tableBuilder := pFrames.tsvFileBuilder().cpu(1).mem(string(1 + len(specsColumns) * 2) + "GiB")
+	tableBuilder.setAxisHeader(mainAxis.spec, mainAxis.column)
+	for colId in specsColumns {
+		tableBuilder.add(columnBundle.getColumn(colId))
+	}
+	sourceFile := tableBuilder.build()
+
+	columnNameManager := util.createColumnNameManager()
+
+	finalExpressions := slices.map(annotationSpecs.specs, func(spec) {
+		return {
+			name: columnNameManager.toSafe(spec.name),
+			expression: util.mapExpressionColumnNames(spec.expression, func(colId) {
+				return tableBuilder.getHeader(colId)
+			})
+		}
+	})
+
+	safeColumnNames := slices.map(finalExpressions, func(spec) {
+		return spec.name
+	})
+	filterSafeColumnNames := computeFilters ? safeColumnNames : [];
+	safeColumnNamesReversed := slices.reverse(safeColumnNames)
+
+	annotationColumnExpr := slices.
+		reduce(safeColumnNamesReversed, func(exp, colName) {
+			return exp.when(pt.col(colName)).then(pt.lit(columnNameManager.fromSafe(colName)))
+		}, pt).
+		otherwise(pt.lit(undefined)).
+		alias(ANNOTATION_HEADER)
+
+	wf := pt.workflow()
+	
+	dfData := wf.frame(sourceFile, { format: "tsv" }).
+		withColumns(finalExpressions...).
+		withColumns(annotationColumnExpr)
+
+	dfData.
+		select(mainAxis.column, ANNOTATION_HEADER).
+	    save(DATA_FILE)
+
+	for colName in filterSafeColumnNames {
+		dfData.
+			filter(pt.col(ANNOTATION_HEADER).eq(pt.lit(columnNameManager.fromSafe(colName)))).
+			withColumns(pt.lit(1).alias(ANNOTATION_HEADER).alias(colName)).
+			select(mainAxis.column, colName).
+			save(createFilterFileName(colName))
+	}
+	
+    wfResult := wf.run()
+
+	dataFile := wfResult.getFile(DATA_FILE)
+	filterFiles := slices.map(filterSafeColumnNames, func(colName) {
+		return { name: colName, file: wfResult.getFile(createFilterFileName(colName)) }
+	})
+
+	annotationsDataAndSpec := createAnnotationsDataAndSpec(dataFile)
+	outputs["annotations"] = {
+		column: ANNOTATION_HEADER,
+		label: annotationSpecs.title,
+		file: dataFile,
+		data: annotationsDataAndSpec[ANNOTATION_HEADER].data,
+		spec: annotationsDataAndSpec[ANNOTATION_HEADER].spec
+	}
+
+	outputs["annotationsFilters"] = slices.map(filterFiles, func(v) {
+		label := columnNameManager.fromSafe(v.name)
+		specAndData := createFilterDataAndSpec(v.file, v.name, label)
+		return {
+			column: v.name,
+			label: label,
+			file: v.file,
+			data: specAndData[v.name].data,
+			spec: specAndData[v.name].spec
+		}
+	})
+
+	return outputs
+}
+
+export ll.toStrict({
+	computeAnnotations: computeAnnotations
+})

@@ -18,13 +18,15 @@ text := import("text")
 math := import("math")
 
 util := import(":util")
+annotationsUtil := import(":annotations")
 
 // Input headers
 SAMPLE_KEY_HEADER := "sample_key"
 CLONOTYPE_KEY_HEADER := "clonotype_key"
 
 // Result headers
-ANNOTATION_HEADER := "annotation"
+MAIN_COUNT_HEADER := "main_count"
+MAIN_FRACTION_HEADER := "main_fraction"
 
 // States headers
 ANNOTATION_COUNT_HEADER := "annotation_count"
@@ -32,16 +34,12 @@ CLONOTYPE_COUNT_HEADER := "clonotype_count"
 
 // Result file
 DATA_FILE := "data.tsv"
-STATS_FILE := "stats.tsv"
-LOCAL_STATS_FILE := "local_stats.tsv"
+SAMPLE_STATS_FILE := "sample_stats.tsv"
+ANNOTATION_STATS_FILE := "annotation_stats.tsv"
 
 self.awaitState("columnBundle", { wildcard: "*" }, "ref", "ResourceReady")
 self.awaitState("columnBundle", { wildcard: "*" }, "data", "InputsLocked")
 self.awaitState("columnBundle", { wildcard: "*" }, "spec", "ResourceReady")
-
-createFilterFileName := func(colName) {
-	return colName + "_filter.tsv"
-}
 
 createAxisSpecFactory := func(blockId) {
 	return func(type, name, label) {
@@ -55,6 +53,15 @@ createAxisSpecFactory := func(blockId) {
 				"pl7.app/label": label
 			}
 		}
+	}
+}
+
+convertColumnSpecToAxisSpec := func(spec) {
+	return {
+		type: spec.valueType,
+		name: spec.name,
+		domain: spec.domain,
+		annotations: spec.annotations
 	}
 }
 
@@ -75,98 +82,63 @@ createColumnSpecFactory := func(trace, blockId) {
 	}
 }
 
-convertToPFrame := func(dataAndSpec) {
-	pf := pFrames.pFrameBuilder()
-	for k, v in dataAndSpec {
-		pf.add(k, v.spec, v.data)
-	}
-	return pf.build()
-}
-
-createAnnotationPFrameFactory := func(clonotypeAxisSpec, createColumnSpec, annotationLabel) {
-	return func(dataFile) {
-		importSpec := {
-			cpu: 1,
-			mem: "12GiB",
-			storageFormat: "Binary",
-			partitionKeyLength: 0,
-			axes: [{
-				column: CLONOTYPE_KEY_HEADER,
-				spec: clonotypeAxisSpec
-			}],
-			columns: [{
-				column: ANNOTATION_HEADER,
-				spec: createColumnSpec("String", ANNOTATION_HEADER, annotationLabel, [clonotypeAxisSpec])
-			}]
-		}
-
-		dataAndSpec := xsv.importFile(dataFile, "tsv", importSpec, { splitDataAndSpec: true })
-
-		return { pFrame: convertToPFrame(dataAndSpec), dataAndSpec: dataAndSpec }
-	}
-}
-
-createStatsPFrameFactory := func(annotationsAxisSpec, createColumnSpec) {
+createStatsDataAndSpecByAnnotationFactory := func(annotationsAxis, createColumnSpec) {
 	return func(file) {
-		statsAxesSpec := [annotationsAxisSpec]
 		importSpec := {
 			storageFormat: "Binary",
 			partitionKeyLength: 0,
-			axes: [
-				{ column: ANNOTATION_HEADER, spec: annotationsAxisSpec }
-			],
+			axes: [annotationsAxis],
 			columns: [
 				{
 					column: ANNOTATION_COUNT_HEADER,
-					spec: createColumnSpec("Long", "stats/" + ANNOTATION_COUNT_HEADER, "Total Count of Annotations", statsAxesSpec)
+					spec: createColumnSpec("Long", "stats/" + ANNOTATION_COUNT_HEADER, "Total Count of Annotations", [annotationsAxis.spec])
 				},
 				{
 					column: CLONOTYPE_COUNT_HEADER,
-					spec: createColumnSpec("Long", "stats/" + CLONOTYPE_COUNT_HEADER, "Total Number of Clonotypes", statsAxesSpec)
+					spec: createColumnSpec("Long", "stats/" + CLONOTYPE_COUNT_HEADER, "Total Number of Clonotypes", [annotationsAxis.spec])
 				}
 			]
-		}
-
-		statsDataAndSpec := xsv.importFile(file, "tsv", importSpec, { splitDataAndSpec: true });
-
-		return convertToPFrame(statsDataAndSpec)
-	}
-}
-
-createFilterDataAndSpecFactory := func(clonotypeAxisSpec, createColumnSpec) {
-	return func(file, colName, label) {
-		filterColumnSpec := maps.deepMerge(createColumnSpec("Int", "filter", label, [clonotypeAxisSpec]), {
-			domain: {
-				"pl7.app/filterLabel": label
-			},
-			annotations: {
-				"pl7.app/isSubset": "true"
-			}
-		});
-		
-		importSpec := {
-			cpu: 1,
-			mem: "8GiB",
-			storageFormat: "Binary",
-			partitionKeyLength: 0,
-			axes: [{
-				column: CLONOTYPE_KEY_HEADER,
-				spec: clonotypeAxisSpec
-			}],
-			columns: [{
-				column: colName,
-				spec: filterColumnSpec
-			}]
 		}
 
 		return xsv.importFile(file, "tsv", importSpec, { splitDataAndSpec: true })
 	}
 }
 
-createFiltersPFrame := func(specAndDataArray) {
+createStatsDataAndSpecBySampleFactory := func(sampleAxis, annotationsAxis, createColumnSpec) {
+	return func(file) {
+		importAxesSpec := [sampleAxis.spec, annotationsAxis.spec]
+		importSpec := {
+			storageFormat: "Binary",
+			partitionKeyLength: 1,
+			axes: [sampleAxis, annotationsAxis],
+			columns: [
+				{
+					column: ANNOTATION_COUNT_HEADER,
+					spec: createColumnSpec("Int", "stats/" + ANNOTATION_COUNT_HEADER, "Annotations count", importAxesSpec)
+				},
+				{
+					column: CLONOTYPE_COUNT_HEADER,
+					spec: createColumnSpec("Int", "stats/" + CLONOTYPE_COUNT_HEADER, "Clonotypes Number", importAxesSpec)
+				},
+				{
+					column: MAIN_COUNT_HEADER+"_sum",
+					spec: createColumnSpec("Double", "stats/" + MAIN_COUNT_HEADER+"_sum", "Count sum", importAxesSpec)
+				},
+				{
+					column: MAIN_FRACTION_HEADER+"_sum",
+					spec: createColumnSpec("Double", "stats/" + MAIN_FRACTION_HEADER+"_sum", "Fraction sum", importAxesSpec)
+				}
+			]
+		}
+
+		return xsv.importFile(file, "tsv", importSpec, { splitDataAndSpec: true });
+	}
+}
+
+convertToPFrame := func(...dataAndSpecs) {
 	pf := pFrames.pFrameBuilder()
 
-	for dataAndSpec in specAndDataArray {
+	for dataAndSpec in dataAndSpecs {
 		for k, v in dataAndSpec {
 			pf.add(k, v.spec, v.data)
 		}
@@ -212,158 +184,71 @@ self.body(func(inputs) {
 		id: blockId
 	})
 
-
 	createAxisSpec := createAxisSpecFactory(blockId)
-	annotationsAxisSpec := createAxisSpec("String", ANNOTATION_HEADER, annotationSpecs.title)
-
 	createColumnSpec := createColumnSpecFactory(trace, blockId)
-	createAnnotationPFrame := createAnnotationPFrameFactory(clonotypeAxisSpec, createColumnSpec, annotationSpecs.title)
-	createFilterDataAndSpec := createFilterDataAndSpecFactory(clonotypeAxisSpec, createColumnSpec)
-	createStatsPFrame := createStatsPFrameFactory(annotationsAxisSpec, createColumnSpec)
-
-	// Preparing annotation script inputs
-	specsColumns := util.extractColumnsFromExpression(annotationSpecs)
-
-	tableBuilder := pFrames.tsvFileBuilder().cpu(1).mem(string(1 + len(specsColumns) * 2) + "GiB")
-	tableBuilder.setAxisHeader(clonotypeAxisSpec, CLONOTYPE_KEY_HEADER)
-	for colId in specsColumns {
-		tableBuilder.add(columnBundle.getColumn(colId))
-	}
-	sourceFile := tableBuilder.build()
-
-	columnNameManager := util.createColumnNameManager()
-
-	finalExpressions := slices.map(annotationSpecs.specs, func(spec) {
-		return {
-			name: columnNameManager.toSafe(spec.name),
-			expression: util.mapExpressionColumnNames(spec.expression, func(colId) {
-				return tableBuilder.getHeader(colId)
-			})
-		}
-	})
-
-	safeColumnNames := slices.map(finalExpressions, func(spec) {
-		return spec.name
-	})
-	filterSafeColumnNames := computeFilters ? safeColumnNames : [];
-	safeColumnNamesReversed := slices.reverse(safeColumnNames)
-
-	annotationColumnExpr := slices.
-		reduce(safeColumnNamesReversed, func(exp, colName) {
-			return exp.when(pt.col(colName)).then(pt.lit(columnNameManager.fromSafe(colName)))
-		}, pt).
-		otherwise(pt.lit(undefined)).
-		alias(ANNOTATION_HEADER)
-
-	wf := pt.workflow()
 	
-	dfData := wf.frame(sourceFile, { format: "tsv" }).
-		withColumns(finalExpressions...).
-		withColumns(annotationColumnExpr)
+	// -------------------
 
-	dfData.
-		select(CLONOTYPE_KEY_HEADER, ANNOTATION_HEADER).
-	    save(DATA_FILE)
+	result := annotationsUtil.computeAnnotations({
+		annotationScript: annotationSpecs,
+		mainAxis: { column: CLONOTYPE_KEY_HEADER, spec: clonotypeAxisSpec },
+		blockId: blockId,
+		traceSpec: trace,
+		computeFilters: computeFilters,
 
-	dfData.
-		select(CLONOTYPE_KEY_HEADER, ANNOTATION_HEADER).
-		groupBy(ANNOTATION_HEADER).
-		agg(
-			pt.col(ANNOTATION_HEADER).count().alias(ANNOTATION_COUNT_HEADER),
-			pt.col(CLONOTYPE_KEY_HEADER).count().alias(CLONOTYPE_COUNT_HEADER)
-		).
-		save(STATS_FILE)
-
-	for colName in filterSafeColumnNames {
-		dfData.
-			filter(pt.col(ANNOTATION_HEADER).eq(pt.lit(columnNameManager.fromSafe(colName)))).
-			withColumns(pt.lit(1).alias(ANNOTATION_HEADER).alias(colName)).
-			select(CLONOTYPE_KEY_HEADER, colName).
-			save(createFilterFileName(colName))
-	}
-	
-    wfResult := wf.run()
-
-	dataFile := wfResult.getFile(DATA_FILE)
-	statsFile := wfResult.getFile(STATS_FILE)
-	filterFiles := slices.map(filterSafeColumnNames, func(colName) {
-		return { name: colName, file: wfResult.getFile(createFilterFileName(colName)) }
+		columnBundle: columnBundle
 	})
 
-	annotationResult := createAnnotationPFrame(dataFile);
-	outputs["annotationPf"] = annotationResult.pFrame;
-	outputs["statsPf"] = createStatsPFrame(statsFile)
-	outputs["filtersPf"] = createFiltersPFrame(slices.map(filterFiles, func(v) {
-		return createFilterDataAndSpec(v.file, v.name, columnNameManager.fromSafe(v.name))
-	}))
+	annotationsAxis := { column: result.annotations.column, spec: convertColumnSpecToAxisSpec(result.annotations.spec) }
+	
+	createStatsDataAndSpecByAnnotation := createStatsDataAndSpecByAnnotationFactory(
+		annotationsAxis,
+		createColumnSpec
+	)
+	createStatsDataAndSpecBySample := createStatsDataAndSpecBySampleFactory(
+		{ column: SAMPLE_KEY_HEADER, spec: sampleAxisSpec },
+		annotationsAxis,
+		createColumnSpec
+	)
+
+	outputs["annotationPf"] = convertToPFrame(result.annotations.dataAndSpec);
+	outputs["filtersPf"] = convertToPFrame(slices.map(result.annotationsFilters, func(v) { return v.dataAndSpec }))
 
 	// -------------------
 
-	wf = pt.workflow()
-	
-	MAIN_COUNT_HEADER := "main_count"
-	MAIN_FRACTION_HEADER := "main_fraction"
+	statsBySampleFileBuilder := pFrames.tsvFileBuilder()
+	statsBySampleFileBuilder.setAxisHeader(sampleAxisSpec, SAMPLE_KEY_HEADER)
+	statsBySampleFileBuilder.setAxisHeader(clonotypeAxisSpec, CLONOTYPE_KEY_HEADER)
 
-	localStatsSourceFileBuilder := pFrames.tsvFileBuilder()
-	localStatsSourceFileBuilder.setAxisHeader(sampleAxisSpec, SAMPLE_KEY_HEADER)
-	localStatsSourceFileBuilder.setAxisHeader(clonotypeAxisSpec, CLONOTYPE_KEY_HEADER)
+	statsBySampleFileBuilder.add(result.annotations, { header: result.annotations.column })
+	statsBySampleFileBuilder.add(mainCount, { header: MAIN_COUNT_HEADER })
+	statsBySampleFileBuilder.add(mainFraction, { header: MAIN_FRACTION_HEADER })
 
-	localStatsSourceFileBuilder.add(annotationResult.dataAndSpec[ANNOTATION_HEADER], { header: ANNOTATION_HEADER })
-	localStatsSourceFileBuilder.add(mainCount, { header: MAIN_COUNT_HEADER })
-	localStatsSourceFileBuilder.add(mainFraction, { header: MAIN_FRACTION_HEADER })
+	statsBySampleFile := statsBySampleFileBuilder.build()
 
-	localStatsSourceFile := localStatsSourceFileBuilder.build()
-
-	localStatsDf := wf.frame(localStatsSourceFile, { format: "tsv" }).
-		groupBy(SAMPLE_KEY_HEADER, ANNOTATION_HEADER).
+	wf := pt.workflow()
+	wf.frame(statsBySampleFile, { format: "tsv" }).
+		groupBy(SAMPLE_KEY_HEADER, result.annotations.column).
 		agg(
-			pt.col(ANNOTATION_HEADER).count().alias(ANNOTATION_COUNT_HEADER),
+			pt.col(result.annotations.column).count().alias(ANNOTATION_COUNT_HEADER),
 			pt.col(CLONOTYPE_KEY_HEADER).count().alias(CLONOTYPE_COUNT_HEADER),
 			pt.col(MAIN_COUNT_HEADER).sum().alias(MAIN_COUNT_HEADER+"_sum"),
 			pt.col(MAIN_FRACTION_HEADER).sum().alias(MAIN_FRACTION_HEADER+"_sum")
 		).
-		save(LOCAL_STATS_FILE)
+		save(SAMPLE_STATS_FILE)
+	
+	wf.frame(result.annotations.file, { format: "tsv" }).
+		select(CLONOTYPE_KEY_HEADER, result.annotations.column).
+		groupBy(result.annotations.column).
+		agg(
+			pt.col(result.annotations.column).count().alias(ANNOTATION_COUNT_HEADER),
+			pt.col(CLONOTYPE_KEY_HEADER).count().alias(CLONOTYPE_COUNT_HEADER)
+		).
+		save(ANNOTATION_STATS_FILE)
+	wfResult := wf.run()
 
-	wfResult = wf.run()
-	localStatsTargetFile := wfResult.getFile(LOCAL_STATS_FILE)
-
-	importAxesSpec := [sampleAxisSpec, annotationsAxisSpec]
-	importSpec := {
-		storageFormat: "Binary",
-		partitionKeyLength: 1,
-		axes: [
-			{
-				column: SAMPLE_KEY_HEADER,
-				spec: sampleAxisSpec
-			},
-			{
-				column: ANNOTATION_HEADER,
-				spec: annotationsAxisSpec
-			}
-		],
-		columns: [
-			{
-				column: ANNOTATION_COUNT_HEADER,
-				spec: createColumnSpec("Int", "stats/" + ANNOTATION_COUNT_HEADER, "Annotations count", importAxesSpec)
-			},
-			{
-				column: CLONOTYPE_COUNT_HEADER,
-				spec: createColumnSpec("Int", "stats/" + CLONOTYPE_COUNT_HEADER, "Clonotypes Number", importAxesSpec)
-			},
-			{
-				column: MAIN_COUNT_HEADER+"_sum",
-				spec: createColumnSpec("Double", "stats/" + MAIN_COUNT_HEADER+"_sum", "Count sum", importAxesSpec)
-			},
-			{
-				column: MAIN_FRACTION_HEADER+"_sum",
-				spec: createColumnSpec("Double", "stats/" + MAIN_FRACTION_HEADER+"_sum", "Fraction sum", importAxesSpec)
-			}
-		]
-	}
-
-	localStatsDataAndSpec := xsv.importFile(localStatsTargetFile, "tsv", importSpec, { splitDataAndSpec: true });
-
-	outputs["localStatsPf"] = convertToPFrame(localStatsDataAndSpec)
+	outputs["sampleStatsPf"] = convertToPFrame(createStatsDataAndSpecBySample(wfResult.getFile(SAMPLE_STATS_FILE)))
+	outputs["annotationStatsPf"] = convertToPFrame(createStatsDataAndSpecByAnnotation(wfResult.getFile(ANNOTATION_STATS_FILE)))
 
 	// -------------------
 

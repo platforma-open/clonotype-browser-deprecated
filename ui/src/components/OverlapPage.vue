@@ -21,7 +21,7 @@ function setAnchorColumn(ref: PlRef | undefined) {
 
 const tableSettings = usePlDataTableSettingsV2({
   sourceId: () => app.model.args.inputAnchor,
-  model: () => app.model.outputs.overlapTableV2,
+  model: () => app.model.outputs.overlapTable,
 });
 </script>
 
