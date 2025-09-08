@@ -315,7 +315,7 @@ export const platforma = BlockModel.create('Heavy')
     );
   })
 
-  .output('filtersPf', (ctx) => {
+  .output('debugPf', (ctx) => {
     if (ctx.args.inputAnchor === undefined)
       return undefined;
 
@@ -324,12 +324,11 @@ export const platforma = BlockModel.create('Heavy')
 
     const collection = new PColumnCollection();
 
-    const annotation = ctx.prerun?.resolve({ field: 'filtersPf', assertFieldType: 'Input', allowPermanentAbsence: true })?.getPColumns();
+    const annotation = ctx.prerun?.resolve({ field: 'localStatsPf', assertFieldType: 'Input', allowPermanentAbsence: true })?.getPColumns();
     if (annotation) collection.addColumns(annotation);
 
     // result pool is added after the pre-run ouptus so that pre-run results take precedence
     collection
-      // .addColumnProvider(ctx.resultPool)
       .addAxisLabelProvider(ctx.resultPool);
 
     const columns = collection.getColumns({ axes: [{ }] });
@@ -455,26 +454,69 @@ export const platforma = BlockModel.create('Heavy')
     );
   })
 
-  .output('statsTable', (ctx) => {
-    // const statsPf = ctx.prerun?.resolve({ field: 'statsPf', assertFieldType: 'Input', allowPermanentAbsence: true });
-    // if (statsPf && statsPf.getIsReadyOrError()) {
-    //   const columns = statsPf.getPColumns();
-    //   if (!columns) return undefined;
+  .output('statsTableV3', (ctx) => {
+    const allColumns = [];
+    const statsPf = ctx.prerun?.resolve({ field: 'statsPfV2', assertFieldType: 'Input', allowPermanentAbsence: true });
+    if (statsPf && statsPf.getIsReadyOrError()) {
+      const columns = statsPf.getPColumns();
+      if (columns) {
+        allColumns.push(columns);
+      }
+    }
+    const localStatsPf = ctx.prerun?.resolve({ field: 'localStatsPf', assertFieldType: 'Input', allowPermanentAbsence: true });
+    if (localStatsPf && localStatsPf.getIsReadyOrError()) {
+      const columns = localStatsPf.getPColumns();
+      if (columns) {
+        allColumns.push(columns);
+      }
+    }
 
-    //   const columnsAfterSplitting = new PColumnCollection()
-    //     .addAxisLabelProvider(ctx.resultPool)
-    //     .addColumns(columns)
-    //     .getColumns({ axes: [{ split: true }, { }] });
+    if (allColumns.length !== 2) return undefined;
 
-    //   if (columnsAfterSplitting === undefined) return undefined;
+    const collection = new PColumnCollection()
+      .addAxisLabelProvider(ctx.resultPool);
 
-    //   return createPlDataTableV2(
-    //     ctx,
-    //     columnsAfterSplitting,
-    //     ctx.uiState.statsTable.tableState,
-    //   );
-    // }
-    return undefined;
+    for (const cols of allColumns) {
+      collection.addColumns(cols);
+    }
+
+    const columnsAfterSplitting = collection
+      // .getColumns([{ axes: [{ }] }]);
+      // .getColumns({ axes: [{ split: true }, { }] });
+      .getColumns([{ axes: [{ }] }, { axes: [{ split: true }, { }] }]);
+
+    if (columnsAfterSplitting === undefined) return undefined;
+
+    return createPlDataTableV2(
+      ctx,
+      columnsAfterSplitting,
+      ctx.uiState.statsTable.tableState,
+    );
+  })
+
+  .output('statsTableV4', (ctx) => {
+    const localStatsPf = ctx.prerun?.resolve({ field: 'localStatsPf', assertFieldType: 'Input', allowPermanentAbsence: true });
+    if (!localStatsPf || !localStatsPf.getIsReadyOrError()) return undefined;
+
+    const columns = localStatsPf.getPColumns();
+    if (!columns) return undefined;
+
+    const collection = new PColumnCollection()
+      .addAxisLabelProvider(ctx.resultPool)
+      .addColumns(columns);
+
+    const columnsAfterSplitting = collection
+      // .getColumns([{ axes: [{ }] }]);
+      // .getColumns({ axes: [{ split: true }, { }] });
+      .getColumns([{ axes: [{ }] }, { axes: [{ split: true }, { }] }]);
+
+    if (columnsAfterSplitting === undefined) return undefined;
+
+    return createPlDataTableV2(
+      ctx,
+      columnsAfterSplitting,
+      ctx.uiState.statsTable.tableState,
+    );
   })
 
   .output('statsTableV2', (ctx) => {
@@ -484,15 +526,15 @@ export const platforma = BlockModel.create('Heavy')
 
       if (!columns) return undefined;
 
-      const columnsAfterSplitting = new PColumnCollection()
+      const collectedColumns = new PColumnCollection()
         .addColumns(columns)
         .getColumns({ axes: [{ }] });
 
-      if (columnsAfterSplitting === undefined) return undefined;
+      if (collectedColumns === undefined) return undefined;
 
       return createPlDataTableV2(
         ctx,
-        columnsAfterSplitting,
+        collectedColumns,
         ctx.uiState.statsTable.tableState,
       );
     }

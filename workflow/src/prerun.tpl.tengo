@@ -51,6 +51,7 @@ wf.body(func(args) {
 		outputs["annotationPfV2"] = pFrames.exportFrame(calculationResult.output("annotationPf"))
 		outputs["statsPfV2"] = pFrames.exportFrame(calculationResult.output("statsPf"))
 		outputs["filtersPf"] = pFrames.exportFrame(calculationResult.output("filtersPf"))
+		outputs["localStatsPf"] = pFrames.exportFrame(calculationResult.output("localStatsPf"))
 	}
 
 	return {

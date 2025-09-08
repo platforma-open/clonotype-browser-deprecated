@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { type PlRef, plRefsEqual } from '@platforma-sdk/model';
+import type { PlRef } from '@platforma-sdk/model';
+
 import {
   PlAgDataTableV2,
   PlAnnotationsModal,
@@ -16,24 +17,18 @@ const app = useApp();
 
 function setAnchorColumn(ref: PlRef | undefined) {
   app.model.args.inputAnchor = ref;
-  if (ref) {
-    app.model.args.datasetTitle = app.model.outputs.inputOptions?.find((o) => plRefsEqual(o.ref, ref))?.label;
-  } else {
-    app.model.args.datasetTitle = undefined;
-  }
 }
 
 const tableSettings = usePlDataTableSettingsV2({
-  sourceId: () => app.model.args.inputAnchor,
-  model: () => app.model.outputs.perSampleTable,
-  sheets: () => app.model.outputs.perSampleTableSheets,
+  sourceId: () => app.model.args.annotationSpecs.specs.length > 0 ? app.model.args.annotationSpecs.specs : undefined,
+  model: () => app.model.outputs.statsTableV2,
 });
 </script>
 
 <template>
   <PlBlockPage>
     <template #title>
-      Per Sample Clonotype Browser
+      Overlap Clonotypes Browser
     </template>
     <template #append>
       <ExportBtn />
@@ -46,7 +41,7 @@ const tableSettings = usePlDataTableSettingsV2({
     </template>
     <PlAgDataTableV2
       ref="tableInstance"
-      v-model="app.model.ui.perSampleTable.tableState"
+      v-model="app.model.ui.overlapTable.tableState"
       v-model:selection="app.selectedColumns"
       :settings="tableSettings"
     />

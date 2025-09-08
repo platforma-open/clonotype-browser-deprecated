@@ -5,6 +5,7 @@ import { defineApp } from '@platforma-sdk/ui-vue';
 import { computed, ref, watch } from 'vue';
 import AnnotationStatsPage from './components/AnnotationStatsPage.vue';
 import OverlapPage from './components/OverlapPage.vue';
+import PerSamplePage from './components/PerSamplePage.vue';
 import { migrateUiState } from './migration';
 import { processAnnotationUiStateToArgsState, processAnnotatiuoUiStateToArgs } from './model';
 import { getValuesForSelectedColumns } from './utils';
@@ -59,7 +60,7 @@ export const sdkPlugin = defineApp(platforma as Platforma, (app) => {
     isAnnotationModalOpen,
     filterColumns,
     routes: {
-      '/': () => OverlapPage,
+      '/': () => PerSamplePage,
       '/overlap': () => OverlapPage,
       '/stats': () => AnnotationStatsPage,
     },

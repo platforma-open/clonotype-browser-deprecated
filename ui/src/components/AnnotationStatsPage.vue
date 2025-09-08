@@ -11,8 +11,8 @@ import { useApp } from '../app';
 const app = useApp();
 
 const tableSettings = usePlDataTableSettingsV2({
-  sourceId: () => app.model.args.annotationScript.steps.length > 0 ? app.model.args.annotationScript.steps : undefined,
-  model: () => app.model.outputs.statsTableV2,
+  sourceId: () => app.model.args.annotationSpecs.specs.length > 0 ? app.model.args.annotationSpecs.specs : undefined,
+  model: () => app.model.outputs.statsTableV3,
 });
 </script>
 

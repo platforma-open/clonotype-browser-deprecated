@@ -20,6 +20,7 @@ math := import("math")
 util := import(":util")
 
 // Input headers
+SAMPLE_KEY_HEADER := "sample_key"
 CLONOTYPE_KEY_HEADER := "clonotype_key"
 
 // Result headers
@@ -32,6 +33,7 @@ CLONOTYPE_COUNT_HEADER := "clonotype_count"
 // Result file
 DATA_FILE := "data.tsv"
 STATS_FILE := "stats.tsv"
+LOCAL_STATS_FILE := "local_stats.tsv"
 
 self.awaitState("columnBundle", { wildcard: "*" }, "ref", "ResourceReady")
 self.awaitState("columnBundle", { wildcard: "*" }, "data", "InputsLocked")
@@ -94,19 +96,18 @@ createAnnotationPFrameFactory := func(clonotypeAxisSpec, createColumnSpec, annot
 			}],
 			columns: [{
 				column: ANNOTATION_HEADER,
-				spec: createColumnSpec("String", "annotation", annotationLabel, [clonotypeAxisSpec])
+				spec: createColumnSpec("String", ANNOTATION_HEADER, annotationLabel, [clonotypeAxisSpec])
 			}]
 		}
 
 		dataAndSpec := xsv.importFile(dataFile, "tsv", importSpec, { splitDataAndSpec: true })
 
-		return convertToPFrame(dataAndSpec)
+		return { pFrame: convertToPFrame(dataAndSpec), dataAndSpec: dataAndSpec }
 	}
 }
 
-createStatsPFrameFactory := func(createAxisSpec, createColumnSpec, axisLabel) {
+createStatsPFrameFactory := func(annotationsAxisSpec, createColumnSpec) {
 	return func(file) {
-		annotationsAxisSpec := createAxisSpec("String", "annotation", axisLabel)
 		statsAxesSpec := [annotationsAxisSpec]
 		importSpec := {
 			storageFormat: "Binary",
@@ -199,16 +200,10 @@ self.body(func(inputs) {
 		ll.panic("Main abundance fraction column is required, but not found.")
 	}
 
-	mainFractionSpec := mainFraction.spec
-	mainFractionData := mainFraction.data
-
 	mainCount := columnBundle.getColumn(util.mainCountColumn)
 	if is_undefined(mainCount) {
 		ll.panic("Main count column is required, but not found.")
 	}
-
-	mainCountSpec := mainCount.spec
-	mainCountData := mainCount.data
 
 	trace := pSpec.makeTrace(anchorSpec, {
 		type: "milaboratories.clonotype-annotation",
@@ -217,11 +212,14 @@ self.body(func(inputs) {
 		id: blockId
 	})
 
+
 	createAxisSpec := createAxisSpecFactory(blockId)
+	annotationsAxisSpec := createAxisSpec("String", ANNOTATION_HEADER, annotationSpecs.title)
+
 	createColumnSpec := createColumnSpecFactory(trace, blockId)
-	createStatsPFrame := createStatsPFrameFactory(createAxisSpec, createColumnSpec, annotationSpecs.title)
 	createAnnotationPFrame := createAnnotationPFrameFactory(clonotypeAxisSpec, createColumnSpec, annotationSpecs.title)
 	createFilterDataAndSpec := createFilterDataAndSpecFactory(clonotypeAxisSpec, createColumnSpec)
+	createStatsPFrame := createStatsPFrameFactory(annotationsAxisSpec, createColumnSpec)
 
 	// Preparing annotation script inputs
 	specsColumns := util.extractColumnsFromExpression(annotationSpecs)
@@ -292,12 +290,82 @@ self.body(func(inputs) {
 		return { name: colName, file: wfResult.getFile(createFilterFileName(colName)) }
 	})
 
-	outputs["annotationPf"] = createAnnotationPFrame(dataFile);
+	annotationResult := createAnnotationPFrame(dataFile);
+	outputs["annotationPf"] = annotationResult.pFrame;
 	outputs["statsPf"] = createStatsPFrame(statsFile)
 	outputs["filtersPf"] = createFiltersPFrame(slices.map(filterFiles, func(v) {
 		return createFilterDataAndSpec(v.file, v.name, columnNameManager.fromSafe(v.name))
 	}))
 
+	// -------------------
+
+	wf = pt.workflow()
+	
+	MAIN_COUNT_HEADER := "main_count"
+	MAIN_FRACTION_HEADER := "main_fraction"
+
+	localStatsSourceFileBuilder := pFrames.tsvFileBuilder()
+	localStatsSourceFileBuilder.setAxisHeader(sampleAxisSpec, SAMPLE_KEY_HEADER)
+	localStatsSourceFileBuilder.setAxisHeader(clonotypeAxisSpec, CLONOTYPE_KEY_HEADER)
+
+	localStatsSourceFileBuilder.add(annotationResult.dataAndSpec[ANNOTATION_HEADER], { header: ANNOTATION_HEADER })
+	localStatsSourceFileBuilder.add(mainCount, { header: MAIN_COUNT_HEADER })
+	localStatsSourceFileBuilder.add(mainFraction, { header: MAIN_FRACTION_HEADER })
+
+	localStatsSourceFile := localStatsSourceFileBuilder.build()
+
+	localStatsDf := wf.frame(localStatsSourceFile, { format: "tsv" }).
+		groupBy(SAMPLE_KEY_HEADER, ANNOTATION_HEADER).
+		agg(
+			pt.col(ANNOTATION_HEADER).count().alias(ANNOTATION_COUNT_HEADER),
+			pt.col(CLONOTYPE_KEY_HEADER).count().alias(CLONOTYPE_COUNT_HEADER),
+			pt.col(MAIN_COUNT_HEADER).sum().alias(MAIN_COUNT_HEADER+"_sum"),
+			pt.col(MAIN_FRACTION_HEADER).sum().alias(MAIN_FRACTION_HEADER+"_sum")
+		).
+		save(LOCAL_STATS_FILE)
+
+	wfResult = wf.run()
+	localStatsTargetFile := wfResult.getFile(LOCAL_STATS_FILE)
+
+	importAxesSpec := [sampleAxisSpec, annotationsAxisSpec]
+	importSpec := {
+		storageFormat: "Binary",
+		partitionKeyLength: 1,
+		axes: [
+			{
+				column: SAMPLE_KEY_HEADER,
+				spec: sampleAxisSpec
+			},
+			{
+				column: ANNOTATION_HEADER,
+				spec: annotationsAxisSpec
+			}
+		],
+		columns: [
+			{
+				column: ANNOTATION_COUNT_HEADER,
+				spec: createColumnSpec("Int", "stats/" + ANNOTATION_COUNT_HEADER, "Annotations count", importAxesSpec)
+			},
+			{
+				column: CLONOTYPE_COUNT_HEADER,
+				spec: createColumnSpec("Int", "stats/" + CLONOTYPE_COUNT_HEADER, "Clonotypes Number", importAxesSpec)
+			},
+			{
+				column: MAIN_COUNT_HEADER+"_sum",
+				spec: createColumnSpec("Double", "stats/" + MAIN_COUNT_HEADER+"_sum", "Count sum", importAxesSpec)
+			},
+			{
+				column: MAIN_FRACTION_HEADER+"_sum",
+				spec: createColumnSpec("Double", "stats/" + MAIN_FRACTION_HEADER+"_sum", "Fraction sum", importAxesSpec)
+			}
+		]
+	}
+
+	localStatsDataAndSpec := xsv.importFile(localStatsTargetFile, "tsv", importSpec, { splitDataAndSpec: true });
+
+	outputs["localStatsPf"] = convertToPFrame(localStatsDataAndSpec)
+
+	// -------------------
+
 	return outputs
 })
-
