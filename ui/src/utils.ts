@@ -1,5 +1,5 @@
 import { deepClone, isNil } from '@milaboratories/helpers';
-import type { PObjectId } from '@platforma-sdk/model';
+import type { AnnotationScriptUi, PObjectId } from '@platforma-sdk/model';
 import { getAxisId, getRawPlatformaInstance, type PFrameHandle, type PlSelectionModel } from '@platforma-sdk/model';
 
 export function getDefaultAnnotationScript(): AnnotationScriptUi {
