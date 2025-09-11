@@ -3,7 +3,6 @@ import type { PlRef } from '@platforma-sdk/model';
 
 import {
   PlAgDataTableV2,
-  PlAnnotationsModal,
   PlBlockPage,
   PlBtnGhost,
   PlDropdownRef,
@@ -11,6 +10,7 @@ import {
   usePlDataTableSettingsV2,
 } from '@platforma-sdk/ui-vue';
 import { useApp } from '../app';
+import AnnotationModal from './AnnotationModal.vue';
 import ExportBtn from './ExportBtn.vue';
 
 const app = useApp();
@@ -56,11 +56,5 @@ const tableSettings = usePlDataTableSettingsV2({
       @update:model-value="setAnchorColumn"
     />
   </PlSlideModal>
-  <PlAnnotationsModal
-    v-model:annotation="app.model.ui.annotationScript"
-    v-model:opened="app.isAnnotationModalOpen"
-    :columns="app.filterColumns"
-    :hasSelectedColumns="app.hasSelectedColumns"
-    :getValuesForSelectedColumns="app.getValuesForSelectedColumns"
-  />
+  <AnnotationModal />
 </template>

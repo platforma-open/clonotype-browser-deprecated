@@ -34,7 +34,9 @@
     }
   },
   "pnpm": {
-    "overrides": {}
+    "overrides": {
+      "@platforma-sdk/ui-vue": "link:/Users/aleksandr/Projects/MILAB/platforma/sdk/ui-vue/"
+    }
   },
   "///": {
     "pnpm": {
