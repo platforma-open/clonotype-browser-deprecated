@@ -218,7 +218,7 @@ importers:
         version: link:../model
       '@platforma-open/milaboratories.mixcr-clonotyping-2':
         specifier: 'catalog:'
-        version: 2.12.2(d3-dispatch@3.0.1)(sortablejs@1.15.6)(typescript@5.6.3)
+        version: 2.12.2(d3-dispatch@3.0.1)(d3-path@3.1.0)(d3-scale-chromatic@3.1.0)(sortablejs@1.15.6)(typescript@5.6.3)
       '@platforma-open/milaboratories.mixcr-clonotyping-2.model':
         specifier: 'catalog:'
         version: 1.16.1
@@ -8345,7 +8345,7 @@ snapshots:
       - d3-scale-chromatic
       - supports-color
 
-  '@milaboratories/miplots4@1.0.145(d3-dispatch@3.0.1)':
+  '@milaboratories/miplots4@1.0.145(d3-dispatch@3.0.1)(d3-path@3.1.0)(d3-scale-chromatic@3.1.0)':
     dependencies:
       '@d3fc/d3fc-chart': 5.1.9(d3-array@3.2.4)(d3-path@3.1.0)(d3-scale-chromatic@3.1.0)(d3-scale@4.0.2)(d3-selection@3.0.0)(d3-shape@3.2.0)
       '@d3fc/d3fc-pointer': 3.0.3(d3-dispatch@3.0.1)(d3-selection@3.0.0)
@@ -8853,12 +8853,12 @@ snapshots:
       '@platforma-sdk/model': 1.43.2
       zod: 3.23.8
 
-  '@platforma-open/milaboratories.mixcr-clonotyping-2.ui@1.15.2(d3-dispatch@3.0.1)(sortablejs@1.15.6)(typescript@5.6.3)':
+  '@platforma-open/milaboratories.mixcr-clonotyping-2.ui@1.15.2(d3-dispatch@3.0.1)(d3-path@3.1.0)(d3-scale-chromatic@3.1.0)(sortablejs@1.15.6)(typescript@5.6.3)':
     dependencies:
       '@milaboratories/helpers': 1.8.0
       '@platforma-open/milaboratories.mixcr-clonotyping-2.model': 1.16.1
       '@platforma-sdk/model': 1.43.2
-      '@platforma-sdk/ui-vue': 1.43.2(d3-dispatch@3.0.1)(sortablejs@1.15.6)(typescript@5.6.3)
+      '@platforma-sdk/ui-vue': 1.43.2(d3-dispatch@3.0.1)(d3-path@3.1.0)(d3-scale-chromatic@3.1.0)(sortablejs@1.15.6)(typescript@5.6.3)
       '@vueuse/core': 13.9.0(vue@3.5.16(typescript@5.6.3))
       ag-grid-enterprise: 34.0.2
       ag-grid-vue3: 34.0.2(vue@3.5.16(typescript@5.6.3))
@@ -8889,10 +8889,10 @@ snapshots:
       '@platforma-open/milaboratories.software-mixcr': 4.7.0-233-develop
       '@platforma-sdk/workflow-tengo': 5.3.0
 
-  '@platforma-open/milaboratories.mixcr-clonotyping-2@2.12.2(d3-dispatch@3.0.1)(sortablejs@1.15.6)(typescript@5.6.3)':
+  '@platforma-open/milaboratories.mixcr-clonotyping-2@2.12.2(d3-dispatch@3.0.1)(d3-path@3.1.0)(d3-scale-chromatic@3.1.0)(sortablejs@1.15.6)(typescript@5.6.3)':
     dependencies:
       '@platforma-open/milaboratories.mixcr-clonotyping-2.model': 1.16.1
-      '@platforma-open/milaboratories.mixcr-clonotyping-2.ui': 1.15.2(d3-dispatch@3.0.1)(sortablejs@1.15.6)(typescript@5.6.3)
+      '@platforma-open/milaboratories.mixcr-clonotyping-2.ui': 1.15.2(d3-dispatch@3.0.1)(d3-path@3.1.0)(d3-scale-chromatic@3.1.0)(sortablejs@1.15.6)(typescript@5.6.3)
       '@platforma-open/milaboratories.mixcr-clonotyping-2.workflow': 3.5.2
       '@platforma-sdk/model': 1.43.2
     transitivePeerDependencies:
@@ -9206,10 +9206,10 @@ snapshots:
       - typescript
       - universal-cookie
 
-  '@platforma-sdk/ui-vue@1.43.2(d3-dispatch@3.0.1)(sortablejs@1.15.6)(typescript@5.6.3)':
+  '@platforma-sdk/ui-vue@1.43.2(d3-dispatch@3.0.1)(d3-path@3.1.0)(d3-scale-chromatic@3.1.0)(sortablejs@1.15.6)(typescript@5.6.3)':
     dependencies:
       '@milaboratories/biowasm-tools': 2.0.0
-      '@milaboratories/miplots4': 1.0.145(d3-dispatch@3.0.1)
+      '@milaboratories/miplots4': 1.0.145(d3-dispatch@3.0.1)(d3-path@3.1.0)(d3-scale-chromatic@3.1.0)
       '@milaboratories/uikit': 2.4.15(typescript@5.6.3)
       '@platforma-sdk/model': 1.43.2
       '@types/d3-format': 3.0.4
