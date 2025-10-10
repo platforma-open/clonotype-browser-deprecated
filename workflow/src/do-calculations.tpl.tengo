@@ -99,32 +99,38 @@ self.body(func(inputs) {
 	needsClonoTable := (mode == "byClonotype")
 	needsSampleTable := (mode == "bySampleAndClonotype")
 
+	if needsSampleTable {
+		// In bySampleAndClonotype mode, we always need a base sample-clonotype table
+		// for the cases in which we are dealing with a column with only clonotype key axis
+		sampleTableBuilder.add(mainCount)
+		header := sampleTableBuilder.getHeader(mainCount.key)
+		spec := sampleTableBuilder.getSpec(mainCount.key)
+		sampleSchemaMap[header] = { column: header, type: spec.valueType }
+		headerMap[mainCount.key] = header
+	}
+
 	for colId in scriptColumns {
-		colSpec := columnBundle.getSpec(colId)
+		col := columnBundle.getColumn(colId)
+		colSpec := col.spec
 		numAxes := len(colSpec.axesSpec)
 
+		if mode == "bySampleAndClonotype" {
+			sampleTableBuilder.add(col)
+			header := sampleTableBuilder.getHeader(col.key)
+			spec := sampleTableBuilder.getSpec(col.key)
+			sampleSchemaMap[header] = { column: header, type: spec.valueType }
+			headerMap[col.key] = header
 
-		if numAxes == 1 {
-			// Belongs in clonotype table
-			clonoTableBuilder.add(columnBundle.getColumn(colId))
-			header := clonoTableBuilder.getHeader(colId)
-			spec := clonoTableBuilder.getSpec(colId)
-			clonoSchemaMap[header] = { column: header, type: spec.valueType }
-			needsClonoTable = true // Mark true if any 1-axis col is used, even in bySample mode
-			headerMap[colId] = header
-		} else if numAxes == 2 {
-			// Belongs in sample-clonotype table
-			if mode == "byClonotype" {
+		} else { // mode == "byClonotype"
+			if numAxes == 1 {
+				clonoTableBuilder.add(col)
+				header := clonoTableBuilder.getHeader(col.key)
+				spec := clonoTableBuilder.getSpec(col.key)
+				clonoSchemaMap[header] = { column: header, type: spec.valueType }
+				headerMap[col.key] = header
+			} else if numAxes == 2 {
 				ll.panic("Column %s has 2 axes but mode is 'byClonotype'. The script expects only 1-axis columns in this mode.", colId)
 			}
-			sampleTableBuilder.add(columnBundle.getColumn(colId))
-			header := sampleTableBuilder.getHeader(colId)
-			spec := sampleTableBuilder.getSpec(colId)
-			sampleSchemaMap[header] = { column: header, type: spec.valueType }
-			needsSampleTable = true
-			headerMap[colId] = header
-		} else {
-			ll.panic("Column %s has an unexpected number of axes (%d), expected 1 or 2.", colId, numAxes)
 		}
 	}
 
