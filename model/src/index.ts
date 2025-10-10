@@ -45,6 +45,7 @@ export type UiState = {
     tableState: PlDataTableStateV2;
   };
   annotationScript: AnnotationScriptUi;
+  allowRunPerSample: boolean;
 };
 
 export type SimplifiedPColumnSpec = Pick<PColumnSpec, 'valueType' | 'annotations'>;
@@ -104,6 +105,10 @@ export const platforma = BlockModel.create('Heavy')
     runExportAll: false,
   })
 
+  .argsValid((ctx) => {
+    return ctx.uiState.allowRunPerSample === true;
+  })
+
   .withUiState<UiState>({
     settingsOpen: true,
     perSampleTable: {
@@ -120,6 +125,7 @@ export const platforma = BlockModel.create('Heavy')
       mode: 'byClonotype',
       steps: [],
     },
+    allowRunPerSample: true,
   })
 
   .output('inputOptions', (ctx) =>

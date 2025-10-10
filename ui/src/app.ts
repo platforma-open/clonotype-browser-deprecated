@@ -1,6 +1,6 @@
 import type { Platforma, SimplifiedUniversalPColumnEntry } from '@platforma-open/milaboratories.clonotype-browser-2.model';
 import { platforma } from '@platforma-open/milaboratories.clonotype-browser-2.model';
-import type { PFrameHandle, PlSelectionModel } from '@platforma-sdk/model';
+import type { AnnotationFilter, PFrameHandle, PlSelectionModel } from '@platforma-sdk/model';
 import { defineApp } from '@platforma-sdk/ui-vue';
 import { computed, ref } from 'vue';
 import AnnotationStatsPage from './components/AnnotationStatsPage.vue';
@@ -34,6 +34,82 @@ export const sdkPlugin = defineApp(platforma as Platforma, (app) => {
       : (byClonotypeColumns?.columns ?? []);
   });
 
+  const isRunAllowed = computed(() => {
+    const { annotationScript } = app.model.args;
+    if (annotationScript.mode !== 'bySampleAndClonotype') {
+      return true;
+    }
+
+    let foundTwoAxes = false;
+
+    function checkFilters(filter: AnnotationFilter) {
+      if (foundTwoAxes || !filter) {
+        return;
+      }
+
+      function checkColumn(column: any) {
+        if (typeof column === 'string') {
+          try {
+            const decodedColumn = JSON.parse(column);
+            let axes = [];
+            if (decodedColumn && typeof decodedColumn === 'object') {
+              if (decodedColumn.axes) {
+                axes = decodedColumn.axes;
+              } else if (decodedColumn.source && decodedColumn.source.axes) {
+                axes = decodedColumn.source.axes;
+              }
+            }
+            if (Array.isArray(axes) && axes.length === 2) {
+              foundTwoAxes = true;
+            }
+          } catch (e) {
+            // Not a JSON string, ignore
+          }
+        }
+      }
+
+      if (filter.type) {
+        if (filter.type === 'or' || filter.type === 'and') {
+          if ('filters' in filter && filter.filters) {
+            for (const f of filter.filters) {
+              checkFilters(f);
+              if (foundTwoAxes) return;
+            }
+          }
+        } else if (filter.type === 'not') {
+          if ('filter' in filter && filter.filter) {
+            checkFilters(filter.filter);
+          }
+        } else if (filter.type === 'numericalComparison') {
+          if ('lhs' in filter && filter.lhs) {
+            checkColumn(filter.lhs);
+            if (foundTwoAxes) return;
+          }
+          if ('rhs' in filter && filter.rhs) {
+            checkColumn(filter.rhs);
+          }
+        } else if (filter.type === 'isNA' || filter.type === 'pattern') {
+          if ('column' in filter && filter.column) {
+            checkColumn(filter.column);
+          }
+        }
+      }
+    }
+
+    if (annotationScript.steps) {
+      for (const step of annotationScript.steps) {
+        if (step.filter) {
+          checkFilters(step.filter);
+        }
+        if (foundTwoAxes) {
+          break;
+        }
+      }
+    }
+
+    return foundTwoAxes;
+  });
+
   return {
     getValuesForSelectedColumns: () => {
       const { bySampleAndClonotypeColumns, byClonotypeColumns } = app.model.outputs;
@@ -50,6 +126,7 @@ export const sdkPlugin = defineApp(platforma as Platforma, (app) => {
     selectedColumns,
     hasSelectedColumns,
     isAnnotationModalOpen,
+    isRunAllowed,
     filterColumns,
     routes: {
       '/': () => PerSamplePage,

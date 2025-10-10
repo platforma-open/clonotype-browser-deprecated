@@ -28,10 +28,14 @@ const tableSettings = usePlDataTableSettingsV2({
   model: () => app.model.outputs.perSampleTable,
   sheets: () => app.model.outputs.perSampleTableSheets,
 });
+
+app.model.ui.allowRunPerSample = app.isRunAllowed;
+
 </script>
 
 <template>
   <PlBlockPage>
+    {{ app.isRunAllowed }}
     <template #title>
       Per Sample Clonotype Browser
     </template>
