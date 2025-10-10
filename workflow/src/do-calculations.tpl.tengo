@@ -128,7 +128,6 @@ self.body(func(inputs) {
 				spec := clonoTableBuilder.getSpec(col.key)
 				clonoSchemaMap[header] = { column: header, type: spec.valueType }
 				headerMap[col.key] = header
-				needsClonoTable = true
 			} else if numAxes == 2 {
 				ll.panic("Column %s has 2 axes but mode is 'byClonotype'. The script expects only 1-axis columns in this mode.", colId)
 			}
