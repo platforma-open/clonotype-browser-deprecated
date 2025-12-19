@@ -27,7 +27,6 @@ import { isAnnotationScriptValid } from './validation';
 import {
   commonExcludes,
   excludedAnnotationKeys,
-  addLinkedColumnsToArray,
   getLinkedColumnsForArgs,
   type LinkedColumnEntry,
 } from './column_utils';
@@ -400,14 +399,29 @@ export const platforma = BlockModel.create('Heavy')
         axes: [
           { anchor: 'main', idx: 1 },
         ],
+      }, {
+        // Include linker columns that connect to our anchor axis
+        axes: [
+          { anchor: 'main', idx: 1 },
+          {},
+        ],
+        annotations: {
+          'pl7.app/isLinkerColumn': 'true',
+        },
+      }, {
+        // Include linker columns in reverse order
+        axes: [
+          {},
+          { anchor: 'main', idx: 1 },
+        ],
+        annotations: {
+          'pl7.app/isLinkerColumn': 'true',
+        },
       }],
-      { anchorCtx, exclude: commonExcludes },
+      { anchorCtx, exclude: commonExcludes, enrichByLinkers: true },
     );
 
     if (!columns) return undefined;
-
-    // Get linked columns through linkers (e.g., cluster columns)
-    addLinkedColumnsToArray(ctx, ctx.args.inputAnchor, anchorSpec, columns);
 
     columns.forEach((column) => {
       if (column.spec.annotations?.['pl7.app/isAbundance'] === 'true' && column.spec.name !== 'pl7.app/vdj/sampleCount')
@@ -467,18 +481,34 @@ export const platforma = BlockModel.create('Heavy')
         axes: [
           { anchor: 'main', idx: 1 },
         ],
+      }, {
+        // Include linker columns that connect to our anchor axis
+        axes: [
+          { anchor: 'main', idx: 1 },
+          {},
+        ],
+        annotations: {
+          'pl7.app/isLinkerColumn': 'true',
+        },
+      }, {
+        // Include linker columns in reverse order
+        axes: [
+          {},
+          { anchor: 'main', idx: 1 },
+        ],
+        annotations: {
+          'pl7.app/isLinkerColumn': 'true',
+        },
       }],
       {
         anchorCtx,
         exclude: commonExcludes,
         overrideLabelAnnotation: false,
+        enrichByLinkers: true,
       },
     );
 
     if (!columns) return undefined;
-
-    // Get linked columns through linkers (e.g., cluster columns)
-    addLinkedColumnsToArray(ctx, ctx.args.inputAnchor, anchorSpec, columns);
 
     return createPlDataTableV2(
       ctx,
