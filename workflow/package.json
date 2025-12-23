@@ -4,7 +4,8 @@
   "description": "Tengo-based template",
   "scripts": {
     "build": "rm -rf dist && pl-tengo check && pl-tengo build",
-    "format": "/usr/bin/env emacs --script ./format.el"
+    "format": "/usr/bin/env emacs --script ./format.el",
+    "do-pack": "rm -f *.tgz && pnpm pack && mv *.tgz package.tgz"
   },
   "dependencies": {
     "@platforma-open/milaboratories.software-ptransform": "catalog:",
@@ -14,9 +15,6 @@
     "@platforma-sdk/workflow-tengo": "catalog:"
   },
   "devDependencies": {
-    "@platforma-sdk/tengo-builder": "catalog:",
-    "@platforma-sdk/test": "catalog:",
-    "vitest": "catalog:",
-    "typescript": "catalog:"
+    "@platforma-sdk/tengo-builder": "catalog:"
   }
 }

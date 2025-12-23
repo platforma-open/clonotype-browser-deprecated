@@ -28,10 +28,10 @@ wf.body(func(args) {
 	if args.runExportAll {
 		bundleBuilderForExport := wf.createPBundleBuilder()
 
-		bundleBuilderForExport.addAnchor("main", args.inputAnchor)
-		bundleBuilderForExport.addMulti({ axes: [{ anchor: "main", idx: 0 }, { anchor: "main", idx: 1 }] }, "perSample")
-		bundleBuilderForExport.addMulti({ axes: [{ anchor: "main", idx: 1 }] }, "perClonotype")
-		bundleBuilderForExport.addSingle({ name: "pl7.app/label", axes: [{ anchor: "main", idx: 0 }] }, "sampleLabels")
+	bundleBuilderForExport.addAnchor("main", args.inputAnchor)
+	bundleBuilderForExport.addMulti({ axes: [{ anchor: "main", idx: 0 }, { anchor: "main", idx: 1 }] }, "perSample")
+	bundleBuilderForExport.addMulti({ axes: [{ anchor: "main", idx: 1 }] }, "perClonotype")
+	bundleBuilderForExport.addSingle({ name: "pl7.app/label", domainAnchor: "main", axes: [{ anchor: "main", idx: 0 }] }, "sampleLabels")
 		
 		// Add linker columns
 		bundleBuilderForExport.addMulti({

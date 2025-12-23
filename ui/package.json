@@ -3,10 +3,11 @@
   "version": "1.9.5",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "watch": "vue-tsc && vite build --watch",
-    "build": "vue-tsc -b && vite build",
-    "preview": "vite preview",
+    "dev": "ts-builder dev --target block-ui",
+    "watch": "ts-builder build --target block-ui --watch",
+    "build": "rm -rf dist && ts-builder build --target block-ui",
+    "preview": "ts-builder preview --target block-ui",
+    "type-check": "ts-builder types --target block-ui",
     "lint": "eslint ."
   },
   "dependencies": {
@@ -21,18 +22,15 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@milaboratories/build-configs": "catalog:",
-    "@milaboratories/helpers": "catalog:",
+    "@milaboratories/ts-builder": "catalog:",
     "@milaboratories/ts-configs": "catalog:",
+    "@milaboratories/helpers": "catalog:",
     "@platforma-sdk/eslint-config": "catalog:",
     "@types/lodash": "catalog:",
-    "@vitejs/plugin-vue": "catalog:",
     "lodash": "catalog:",
-    "rollup-plugin-sourcemaps2": "catalog:",
-    "sass-embedded": "^1.89.2",
+    "sass-embedded": "catalog:",
     "typescript": "catalog:",
-    "vite": "catalog:",
     "vitest": "catalog:",
-    "vue-tsc": "catalog:"
+    "eslint": "catalog:"
   }
 }

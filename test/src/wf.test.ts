@@ -109,6 +109,8 @@ async function setupProject(
         },
       },
     }],
+    h5adFilesToPreprocess: [],
+    seuratFilesToPreprocess: [],
   } satisfies SamplesAndDataBlockArgs);
   await project.runBlock(sndBlockId);
   await helpers.awaitBlockDone(sndBlockId, 100000);
