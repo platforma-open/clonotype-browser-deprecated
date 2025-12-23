@@ -30,7 +30,7 @@ export const commonExcludes: AnchoredPColumnSelector[] = [
  * For each label that appears multiple times:
  * - The first occurrence keeps the original label
  * - Subsequent occurrences get suffixes: " (1)", " (2)", etc.
- * 
+ *
  * @param labelMap - Map of identifier -> label
  * @returns Map of identifier -> unique label (with suffixes if needed)
  */
@@ -40,19 +40,23 @@ export function addSuffixesToDuplicateLabels<K extends string>(
   const labelCounts = new Map<string, number>();
   const labelOccurrences = new Map<string, number>();
   const finalLabels: Record<string, string> = {};
-  
+
+  // Get entries with proper typing
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
+  const entries = Object.entries(labelMap) as Array<[string, string]>;
+
   // Count occurrences of each label
-  for (const [id, label] of Object.entries(labelMap) as [string, string][]) {
+  for (const [_id, label] of entries) {
     labelCounts.set(label, (labelCounts.get(label) || 0) + 1);
   }
-  
+
   // Add suffixes for duplicates
-  for (const [id, label] of Object.entries(labelMap) as [string, string][]) {
+  for (const [id, label] of entries) {
     const count = labelCounts.get(label) || 0;
     if (count > 1) {
       const occurrence = (labelOccurrences.get(label) || 0) + 1;
       labelOccurrences.set(label, occurrence);
-      
+
       if (occurrence > 1) {
         finalLabels[id] = `${label} (${occurrence - 1})`;
       } else {
@@ -62,7 +66,7 @@ export function addSuffixesToDuplicateLabels<K extends string>(
       finalLabels[id] = label;
     }
   }
-  
+
   return finalLabels as Record<K, string>;
 }
 
@@ -70,7 +74,7 @@ export function addSuffixesToDuplicateLabels<K extends string>(
  * Ensures label uniqueness against a set of already used labels.
  * If the label is already used, adds numeric suffixes until a unique label is found.
  * Updates the usedLabelsSet with the final unique label.
- * 
+ *
  * @param label - The label to make unique
  * @param usedLabelsSet - Set of already used labels (will be modified)
  * @returns The unique label (with suffix if needed)
@@ -81,12 +85,12 @@ export function ensureUniqueLabel(
 ): string {
   let uniqueLabel = label;
   let suffixCount = 0;
-  
+
   while (usedLabelsSet.has(uniqueLabel)) {
     suffixCount += 1;
     uniqueLabel = `${label} (${suffixCount})`;
   }
-  
+
   usedLabelsSet.add(uniqueLabel);
   return uniqueLabel;
 }
@@ -94,7 +98,7 @@ export function ensureUniqueLabel(
 /**
  * Derives labels for columns using trace information.
  * Does NOT handle duplicate labels - that's left to the workflow layer.
- * 
+ *
  * @param columns - Array of PColumn objects
  * @returns Map from column id to derived label
  */
@@ -126,7 +130,7 @@ export function deriveLabelsFromTrace(
  * Updates linked column labels to use labels derived from trace information.
  * This ensures that columns from linkers show distinguishing labels when multiple
  * linkers are present (e.g., "Cluster Size / Clustering (sim:..., ident:..., cov:...)").
- * 
+ *
  * @param columns - Array of PColumn objects to update
  * @returns Array of PColumn objects with updated labels
  */
@@ -173,7 +177,7 @@ export function updateLinkedColumnLabels(
 /**
  * Information about a linker column for processing.
  */
-export interface LinkerInfo<TArgs, TUiState> {
+export interface LinkerInfo<_TArgs, _TUiState> {
   /** Index of the axis where clonotypeKey appears in the linker (0 or 1) */
   idx: number;
   /** The linker option containing ref and optional label */
@@ -185,7 +189,7 @@ export interface LinkerInfo<TArgs, TUiState> {
 /**
  * Helper function to find linker options for both axis positions.
  * Returns an array of objects containing linker information for processing.
- * 
+ *
  * @param ctx - The render context
  * @param anchor - The anchor PlRef
  * @param anchorSpec - The specification of the anchor column
@@ -470,4 +474,3 @@ export function addLinkedColumnsToArray<TArgs, TUiState>(
     columns.push(...newLinkedColumns);
   }
 }
-

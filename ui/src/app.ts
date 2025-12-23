@@ -36,7 +36,7 @@ export const sdkPlugin = defineApp(platforma as Platforma, (app) => {
       : (byClonotypeColumns?.columns ?? []);
   });
 
-  const getSuggestOptions = async (params: {
+  const getSuggestOptions = async (_params: {
     columnId: PlAdvancedFilterColumnId;
     searchStr: string;
     axisIdx?: number;

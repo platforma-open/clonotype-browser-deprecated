@@ -4,7 +4,9 @@
   "version": "1.3.23",
   "description": "Block tests",
   "scripts": {
-    "test": "NODE_ENV=production vitest"
+    "test": "NODE_ENV=production vitest",
+    "type-check": "ts-builder types --target block-test",
+    "lint": "eslint ."
   },
   "files": [],
   "keywords": [],
@@ -18,6 +20,8 @@
     "@platforma-sdk/model": "catalog:"
   },
   "devDependencies": {
+    "@milaboratories/ts-builder": "catalog:",
+    "@milaboratories/ts-configs": "catalog:",
     "@platforma-sdk/test": "catalog:",
     "@platforma-sdk/eslint-config": "catalog:",
     "eslint": "catalog:",

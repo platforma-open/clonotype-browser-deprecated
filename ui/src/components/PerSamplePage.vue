@@ -102,4 +102,3 @@ const tableSettings = usePlDataTableSettingsV2({
     :getSuggestOptions="app.getSuggestOptions"
   />
 </template>
-
