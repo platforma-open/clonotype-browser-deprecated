@@ -24,9 +24,10 @@
       "ui": "@platforma-open/milaboratories.clonotype-browser-2.ui/dist"
     },
     "meta": {
-      "title": "Clonotype Browser",
+      "deprecated": true,
+      "title": "Clonotype Browser (Deprecated)",
       "logo": "file:../logos/block-logo.png",
-      "url": "https://github.com/platforma-open/clonotype-browser-2",
+      "url": "https://github.com/platforma-open/clonotype-browser-deprecated",
       "support": "mailto:support@milaboratories.com",
       "description": "Interactive browser for exploring and annotating T/B cell clonotypes with custom tags for tracking, filtering, and downstream analysis.",
       "longDescription": "file:../docs/description.md",

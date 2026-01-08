@@ -40,8 +40,8 @@ catalogs:
       specifier: ^1.6.6
       version: 1.6.6
     '@platforma-sdk/block-tools':
-      specifier: ^2.6.27
-      version: 2.6.27
+      specifier: ^2.6.29
+      version: 2.6.29
     '@platforma-sdk/blocks-deps-updater':
       specifier: ^2.0.0
       version: 2.0.0
@@ -158,7 +158,7 @@ importers:
     devDependencies:
       '@platforma-sdk/block-tools':
         specifier: 'catalog:'
-        version: 2.6.27
+        version: 2.6.29
 
   model:
     dependencies:
@@ -174,7 +174,7 @@ importers:
     devDependencies:
       '@platforma-sdk/block-tools':
         specifier: 'catalog:'
-        version: 2.6.27
+        version: 2.6.29
       '@platforma-sdk/eslint-config':
         specifier: 'catalog:'
         version: 1.1.0(@eslint/js@9.35.0)(@stylistic/eslint-plugin@5.3.1(eslint@9.30.1))(eslint-plugin-n@17.23.1(eslint@9.30.1)(typescript@5.6.3))(eslint-plugin-vue@10.4.0(@typescript-eslint/parser@8.44.0(eslint@9.30.1)(typescript@5.6.3))(eslint@9.30.1)(vue-eslint-parser@10.2.0(eslint@9.30.1)))(eslint@9.30.1)(globals@16.4.0)(typescript-eslint@8.44.0(eslint@9.30.1)(typescript@5.6.3))(typescript@5.6.3)
@@ -1146,11 +1146,17 @@ packages:
   '@milaboratories/pl-model-common@1.21.9':
     resolution: {integrity: sha512-0n8oq0e4ZqbMJIzVnP478BGT86vB4gNSRoDic1ai7bNwMiO+jtNSOwGMwR0mFeRLqXidSLcfDxiEMXmak34f7g==}
 
+  '@milaboratories/pl-model-common@1.23.0':
+    resolution: {integrity: sha512-1uHb2pS+hWJyBKvfOlMYmjbFuWn+tNOULWj84mWASdqSjdYyHfVYbLq5esawM+dnZ2GBQIzJRbXrZYIMqH4Peg==}
+
   '@milaboratories/pl-model-middle-layer@1.8.42':
     resolution: {integrity: sha512-S2caaRDyoS/2pQGyrsN00q0qmbnQJw1bQYk8VySkk6CPHGw+Txn0MCUyKLQCdIPcjO69jjtoWYSD7GXr2ozx1w==}
 
   '@milaboratories/pl-model-middle-layer@1.8.45':
     resolution: {integrity: sha512-Ij9o8o2gWU+POFoILVBhPYXySuM7ySuA7CENbVy8S5wAzRubrEl+fIjQagjl+vhn8hPaZc5n1+MW/C/bTd62UQ==}
+
+  '@milaboratories/pl-model-middle-layer@1.9.1':
+    resolution: {integrity: sha512-iu4G/Xgeop11bdjJoEQWG9jG+7nC1AkS/TW99q2hx8RuOI1FNnqqvYmysKKVwiiGnOfQxgIOEfVn0eNNbVLhhA==}
 
   '@milaboratories/pl-tree@1.8.20':
     resolution: {integrity: sha512-yKWy9iWebHF/M7amuH35i/YNlio+s6vOqCZTwiWIkbE/qffdOHicjb3rlRdPeDwBLg00DjEc5PochWtVE9S1DQ==}
@@ -1408,6 +1414,10 @@ packages:
 
   '@platforma-sdk/block-tools@2.6.27':
     resolution: {integrity: sha512-p9JjM1HeXG6/hHBU28SrJFnqdIH1qNtep6/LqxSmX5Y+xtRW8meYrBJ5hnRbVSjR9biV5CsLf27w6BaxWz8z4g==}
+    hasBin: true
+
+  '@platforma-sdk/block-tools@2.6.29':
+    resolution: {integrity: sha512-YQWLeYitDgpnqjCPhTvn/HjRVuaK/XK0CtaEkZQqv/6333y9Vbvm5K+niKKnQACN1BGtxlimXCjrNgcWRYNThA==}
     hasBin: true
 
   '@platforma-sdk/blocks-deps-updater@2.0.0':
@@ -5994,6 +6004,12 @@ snapshots:
       canonicalize: 2.1.0
       zod: 3.23.8
 
+  '@milaboratories/pl-model-common@1.23.0':
+    dependencies:
+      '@milaboratories/pl-error-like': 1.12.5
+      canonicalize: 2.1.0
+      zod: 3.23.8
+
   '@milaboratories/pl-model-middle-layer@1.8.42':
     dependencies:
       '@milaboratories/pl-model-common': 1.21.8
@@ -6004,6 +6020,13 @@ snapshots:
   '@milaboratories/pl-model-middle-layer@1.8.45':
     dependencies:
       '@milaboratories/pl-model-common': 1.21.10
+      remeda: 2.30.0
+      utility-types: 3.11.0
+      zod: 3.23.8
+
+  '@milaboratories/pl-model-middle-layer@1.9.1':
+    dependencies:
+      '@milaboratories/pl-model-common': 1.23.0
       remeda: 2.30.0
       utility-types: 3.11.0
       zod: 3.23.8
@@ -6379,6 +6402,29 @@ snapshots:
       '@milaboratories/pl-http': 1.2.0
       '@milaboratories/pl-model-common': 1.21.10
       '@milaboratories/pl-model-middle-layer': 1.8.45
+      '@milaboratories/resolve-helper': 1.1.1
+      '@milaboratories/ts-helpers': 1.5.4
+      '@milaboratories/ts-helpers-oclif': 1.1.33
+      '@oclif/core': 4.5.3
+      '@platforma-sdk/blocks-deps-updater': 2.0.0
+      canonicalize: 2.1.0
+      lru-cache: 11.2.2
+      mime-types: 2.1.35
+      remeda: 2.30.0
+      tar: 7.4.3
+      undici: 7.16.0
+      yaml: 2.8.1
+      zod: 3.23.8
+    transitivePeerDependencies:
+      - aws-crt
+      - supports-color
+
+  '@platforma-sdk/block-tools@2.6.29':
+    dependencies:
+      '@aws-sdk/client-s3': 3.859.0
+      '@milaboratories/pl-http': 1.2.0
+      '@milaboratories/pl-model-common': 1.23.0
+      '@milaboratories/pl-model-middle-layer': 1.9.1
       '@milaboratories/resolve-helper': 1.1.1
       '@milaboratories/ts-helpers': 1.5.4
       '@milaboratories/ts-helpers-oclif': 1.1.33
