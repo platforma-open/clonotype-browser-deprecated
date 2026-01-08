@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-browser-2
 
+## 1.8.11
+
+### Patch Changes
+
+- 58e31cf: deprecate block
+
 ## 1.8.10
 
 ### Patch Changes
